@@ -28,4 +28,4 @@ EXPOSE 8001
 EXPOSE 8501
 
 # Start FastAPI backend using sh -c to properly evaluate the PORT environment variable
-CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8001}"]
+CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
