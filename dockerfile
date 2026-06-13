@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# Install HDF5 and NetCDF system dependencies
+
 RUN apt-get update && apt-get install -y \
     libhdf5-dev \
     libnetcdf-dev \
