@@ -297,6 +297,7 @@ font-size: 16px;
                 conf = meta.get("confidence", 0)
                 chart_t = meta.get("chart_type", "none")
                 
+                safe_copy_text = html.escape(msg['content'], quote=True).replace('\n', '&#10;').replace('\r', '&#13;')
                 stats_html = f"""
 <div style="
 display: flex; gap: 12px;
@@ -317,7 +318,7 @@ flex-wrap: wrap;
 <span class="chat-copy-btn" style="color: #7aa8cc; font-size: 0.75em; cursor: pointer; transition: color 0.2s;" 
       onmouseover="this.style.color='#00d4ff'" 
       onmouseout="this.style.color='#7aa8cc'"
-      data-clipboard-text="{html.escape(msg['content'], quote=True).replace('\n', '&#10;').replace('\r', '&#13;')}">
+      data-clipboard-text="{safe_copy_text}">
 📋 Copy
 </span>
 <span style="color: #7aa8cc; font-size: 0.75em; margin-left: auto;">
