@@ -1,7 +1,5 @@
 .env
 data/raw/
-data/processed/
-indexes/
 models/
 __pycache__/
 *.pyc
@@ -17,6 +15,5 @@ Thumbs.db
 data/exports/
 notebooks/
 tests/
-*.faiss
 tree_output.txt
 files.txt
