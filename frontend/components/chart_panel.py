@@ -1,10 +1,13 @@
 import streamlit as st
 import pandas as pd
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from visualisation.map_chart import plot_float_map
 from visualisation.profile_chart import plot_depth_profile
 from visualisation.timeseries_chart import plot_timeseries
-
-import os
 
 @st.cache_resource
 def load_data():
