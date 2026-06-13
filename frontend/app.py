@@ -233,8 +233,8 @@ with st.sidebar:
     if is_online and backend_stats:
         recs = f"{backend_stats.get('total_rows', 0):,}"
         floats = f"{backend_stats.get('unique_floats', 0):,}"
-        d1 = backend_stats.get('earliest_date', '')[:4]
-        d2 = backend_stats.get('latest_date', '')[:4]
+        d1 = (backend_stats.get('earliest_date') or '')[:4]
+        d2 = (backend_stats.get('latest_date') or '')[:4]
         date_cov = f"{d1} ──────────── {d2}" if d1 and d2 else "N/A"
         
         st.markdown(f"""
