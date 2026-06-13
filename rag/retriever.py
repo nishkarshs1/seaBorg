@@ -59,8 +59,13 @@ def load_index() -> None:
     if not parquet_path:
         raise ValueError("PARQUET_PATH is not set.")
 
-    _index = faiss.read_index(faiss_index_path)
-    _df = pd.read_parquet(parquet_path).reset_index(drop=True)
+    try:
+        _index = faiss.read_index(faiss_index_path)
+        _df = pd.read_parquet(parquet_path).reset_index(drop=True)
+    except Exception as e:
+        print(f"WARNING: Could not load FAISS or Parquet files. They may not be deployed yet. Error: {e}")
+        _index = None
+        _df = None
 
 
 import re
