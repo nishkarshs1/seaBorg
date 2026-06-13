@@ -8,6 +8,14 @@ import streamlit.components.v1 as components
 from datetime import datetime
 from components.chart_panel import render_chart
 
+# Initialize Session State for direct page loads
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "last_response" not in st.session_state:
+    st.session_state.last_response = None
+if "suggested_clicked" not in st.session_state:
+    st.session_state.suggested_clicked = False
+
 st.markdown("""
 <style>
 /* PART 1 - PAGE LAYOUT */
