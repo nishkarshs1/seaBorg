@@ -32,6 +32,11 @@ app.include_router(chat.router, prefix="/api")
 app.include_router(data.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 
+@app.get("/health", tags=["Health"])
+def health_check():
+    """Simple health check endpoint for deployment orchestration (like Railway)."""
+    return {"status": "ok", "service": "seaborg-api"}
+
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 @app.on_event("startup")
