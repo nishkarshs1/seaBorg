@@ -500,7 +500,7 @@ st.markdown("""
 <ul class="algo-list">
 <li><b>Type:</b> Hybrid AI architecture</li>
 <li><b>Components:</b> Retriever + Generator</li>
-<li><b>Advantage:</b> LLM cannot hallucinate numbers — it only reads retrieved real sensor data</li>
+<li><b>Advantage:</b> LLM cannot hallucinate numbers - it only reads retrieved real sensor data</li>
 <li><b>Context:</b> Top-5 most relevant records passed</li>
 </ul>
 <div class="algo-used">Used in SeaBorg ✅</div>
@@ -652,7 +652,7 @@ with c1:
 <li style="margin-bottom: 8px;"><strong style="color: white;">Autonomous robotic profilers:</strong> No ship required after deployment.</li>
 <li style="margin-bottom: 8px;"><strong style="color: white;">Global coverage:</strong> Over 4,000 active floats deployed worldwide.</li>
 <li style="margin-bottom: 8px;"><strong style="color: white;">Measurements:</strong> Temperature (°C), Salinity (PSU), and Pressure (dbar, proxy for depth).</li>
-<li style="margin-bottom: 8px;"><strong style="color: white;">Data format:</strong> NetCDF (.nc files) — multidimensional scientific arrays.</li>
+<li style="margin-bottom: 8px;"><strong style="color: white;">Data format:</strong> NetCDF (.nc files) - multidimensional scientific arrays.</li>
 </ul>
 <div class="stat-pills-row">
 <div class="stat-pill">🌍 4,000+ Active Floats</div>

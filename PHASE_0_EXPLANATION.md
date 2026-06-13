@@ -1,4 +1,4 @@
-# PHASE 0 — Project Scaffold (SeaBorg)
+# PHASE 0 - Project Scaffold (SeaBorg)
 
 ## What was implemented
 

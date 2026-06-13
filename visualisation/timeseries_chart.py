@@ -23,7 +23,7 @@ def plot_timeseries(df: pd.DataFrame, float_id: str, variable: str = "temp_c"):
         df_grouped,
         x="date",
         y=variable,
-        title=f"{title_var} over Time — Float {float_id}",
+        title=f"{title_var} over Time - Float {float_id}",
         template="plotly_dark",
         markers=True
     )

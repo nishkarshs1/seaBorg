@@ -14,7 +14,7 @@ def answer_query(question: str, context_rows: pd.DataFrame) -> tuple[str, str]:
     """
     Runs the full RAG + LLM call and returns a strictly data-grounded answer.
 
-    If context_rows is empty the LLM is never called — a fixed "no data"
+    If context_rows is empty the LLM is never called - a fixed "no data"
     message is returned instead.  The prompt explicitly forbids hallucination
     and geographic inference; the LLM only summarises the filtered rows.
 
@@ -28,7 +28,7 @@ def answer_query(question: str, context_rows: pd.DataFrame) -> tuple[str, str]:
     Side effects:
         Makes up to two Groq API calls (answer + SQL generation).
     """
-    # Generate SQL regardless — the caller may still want it
+    # Generate SQL regardless - the caller may still want it
     try:
         sql = generate_sql(question)
     except Exception:

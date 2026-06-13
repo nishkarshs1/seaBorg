@@ -17,7 +17,7 @@ def plot_float_map(df: pd.DataFrame):
         color="temp_c",
         color_continuous_scale="RdBu_r",
         hover_data=["float_id", "date", "depth_m", "temp_c", "salinity"],
-        title="ARGO Float Positions — Indian Ocean",
+        title="ARGO Float Positions - Indian Ocean",
         mapbox_style="carto-darkmatter",
         zoom=2
     )

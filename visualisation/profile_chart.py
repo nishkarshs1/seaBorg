@@ -21,7 +21,7 @@ def plot_depth_profile(df: pd.DataFrame, float_id: str, variable: str = "temp_c"
         df_filtered,
         x=variable,
         y="depth_m",
-        title=f"Depth Profile — Float {float_id}",
+        title=f"Depth Profile - Float {float_id}",
         template="plotly_dark",
         markers=True
     )

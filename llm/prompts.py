@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 CHAT_PROMPT = """You are SeaBorg, an expert AI assistant and ocean scientist. 
-You are warm, intelligent, and conversational — like ChatGPT but specialized 
+You are warm, intelligent, and conversational - like ChatGPT but specialized 
 in oceanography and ARGO float data.
 
 Your personality rules:
@@ -43,7 +43,7 @@ def build_prompt(question: str, context_rows: pd.DataFrame) -> str:
     """
     Formats context_rows as a bullet list and fills CHAT_PROMPT.
 
-    Only the filtered data rows are included — no geographic context is
+    Only the filtered data rows are included - no geographic context is
     injected so the LLM cannot hallucinate region assignments.  Rows are
     capped at 10 to keep the prompt focused.
 

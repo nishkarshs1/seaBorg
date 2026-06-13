@@ -1,4 +1,4 @@
-# PHASE 1 — Data Ingestion & ETL (SeaBorg)
+# PHASE 1 - Data Ingestion & ETL (SeaBorg)
 
 ## What was implemented
 

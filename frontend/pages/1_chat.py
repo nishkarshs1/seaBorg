@@ -10,7 +10,7 @@ from components.chart_panel import render_chart
 
 st.markdown("""
 <style>
-/* PART 1 — PAGE LAYOUT */
+/* PART 1 - PAGE LAYOUT */
 .main .block-container {
     padding-top: 0rem !important;
     padding-bottom: 0;

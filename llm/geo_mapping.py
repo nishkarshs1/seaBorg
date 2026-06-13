@@ -41,7 +41,7 @@ def detect_region(text: str) -> tuple[str | None, dict | None]:
     Scan *text* for the first known region name (longest-match-first).
 
     Returns:
-        (matched_name, bounds_dict)  — or (None, None) if no region found.
+        (matched_name, bounds_dict)  - or (None, None) if no region found.
     """
     text_lower = text.lower()
     # Sort by key length descending so "south china sea" matches before

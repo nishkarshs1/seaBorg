@@ -21,7 +21,7 @@ def detect_chart_type(message: str) -> str:
 
     Returns:
         One of "map", "profile", "timeseries", or "none".
-        First match wins — evaluated in that order.
+        First match wins - evaluated in that order.
 
     Side effects:
         None.

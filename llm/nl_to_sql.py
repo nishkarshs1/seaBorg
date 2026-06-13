@@ -43,7 +43,7 @@ def generate_sql(question: str) -> str:
         question: The user's natural language question.
 
     Returns:
-        A raw SQL string from the LLM. May be unsafe — always validate
+        A raw SQL string from the LLM. May be unsafe - always validate
         with safe_sql_query() before executing.
 
     Side effects:

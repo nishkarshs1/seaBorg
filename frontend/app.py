@@ -198,7 +198,7 @@ pg = st.navigation([page_chat, page_explorer, page_about, page_analytics], posit
 
 # Global Sidebar
 with st.sidebar:
-    # PART 1 — LOGO SECTION
+    # PART 1 - LOGO SECTION
     st.markdown("""
     <div style="text-align: center; padding: 20px 0 10px 0;">
       <div style="
@@ -222,10 +222,10 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # PART 2 — BACKEND STATUS
+    # PART 2 - BACKEND STATUS
     render_backend_status()
 
-    # PART 3 — LIVE STATS MINI CARDS
+    # PART 3 - LIVE STATS MINI CARDS
     if is_online and backend_stats:
         recs = f"{backend_stats.get('total_rows', 0):,}"
         floats = f"{backend_stats.get('unique_floats', 0):,}"
@@ -252,7 +252,7 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
-    # PART 4 — NAVIGATION
+    # PART 4 - NAVIGATION
     st.markdown('<div class="sidebar-section-title">Navigation</div>', unsafe_allow_html=True)
     st.page_link(page_chat, label="Ocean Chat", icon="💬")
     st.page_link(page_explorer, label="Data Explorer", icon="🗺️")
