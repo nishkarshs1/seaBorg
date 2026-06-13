@@ -88,7 +88,7 @@ backend_url = os.environ.get("BACKEND_URL", "http://localhost:8001")
 @st.cache_data(ttl=60, show_spinner=False)
 def fetch_stats():
     try:
-        r = requests.get(f"{backend_url}/api/stats", timeout=5)
+        r = requests.get(f"{backend_url}/api/stats", timeout=15)
         if r.status_code == 200:
             return r.json()
     except:
@@ -98,7 +98,7 @@ def fetch_stats():
 @st.cache_data(ttl=60, show_spinner=False)
 def fetch_floats():
     try:
-        r = requests.get(f"{backend_url}/api/floats?page_size=1000", timeout=10)
+        r = requests.get(f"{backend_url}/api/floats?page_size=1000", timeout=15)
         if r.status_code == 200:
             return r.json().get("floats", [])
     except:

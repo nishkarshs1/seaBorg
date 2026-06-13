@@ -6,7 +6,7 @@ import os
 def fetch_stats():
     backend_url = os.environ.get("BACKEND_URL", "http://localhost:8001")
     try:
-        r = requests.get(f"{backend_url}/api/stats", timeout=2)
+        r = requests.get(f"{backend_url}/api/stats", timeout=15)
         if r.status_code == 200:
             return r.json()
     except Exception:

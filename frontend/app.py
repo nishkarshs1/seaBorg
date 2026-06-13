@@ -1,5 +1,9 @@
-import streamlit as st
+import sys
+import os
+# Add the project root to sys.path so Streamlit Cloud can find modules like 'visualisation'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+import streamlit as st
 import time
 import requests
 import os
@@ -150,7 +154,7 @@ if "suggested_clicked" not in st.session_state:
 def fetch_backend_stats():
     backend_url = os.environ.get("BACKEND_URL", "http://localhost:8001")
     try:
-        r = requests.get(f"{backend_url}/api/stats", timeout=2)
+        r = requests.get(f"{backend_url}/api/stats", timeout=15)
         if r.status_code == 200:
             return True, r.json()
     except Exception:
@@ -161,7 +165,7 @@ def fetch_latency():
     backend_url = os.environ.get("BACKEND_URL", "http://localhost:8001")
     try:
         start_t = time.time()
-        requests.get(f"{backend_url}/openapi.json", timeout=1)
+        requests.get(f"{backend_url}/openapi.json", timeout=15)
         return int((time.time() - start_t) * 1000)
     except Exception:
         return 0
