@@ -1,12 +1,5 @@
-[phases.setup]
-nixPkgs = ["python311", "gcc"]
-aptPkgs = ["libhdf5-dev", "libnetcdf-dev", "netcdf-bin"]
-
-[phases.install]
-cmds = ["python -m venv /opt/venv", ". /opt/venv/bin/activate", "pip install -U pip", "pip install -r requirements.txt"]
-
-[phases.build]
-cmds = []
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.11"
 
 [start]
-cmd = ". /opt/venv/bin/activate && uvicorn api.main:app --host 0.0.0.0 --port $PORT & streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0"
+cmd = "uvicorn api.main:app --host 0.0.0.0 --port $PORT & streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0"
