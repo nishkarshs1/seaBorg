@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Install the rest of the requirements
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download the HuggingFace embedding model so it's baked into the Docker image
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+
 # Copy the rest of the application code
 COPY . .
 
