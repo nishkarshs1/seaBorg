@@ -1,0 +1,12 @@
+.env
+venv/
+__pycache__/
+*.pyc
+indexes/*.faiss
+models/
+data/raw/
+data/processed/
+data/exports/
+.DS_Store
+.vscode/
+*.log
