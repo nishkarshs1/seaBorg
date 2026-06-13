@@ -1,10 +1,7 @@
-import os
 from typing import Optional
-
-import pandas as pd
 from dotenv import load_dotenv
 from fastapi import APIRouter, Query
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 load_dotenv()
 
@@ -13,13 +10,14 @@ router = APIRouter()
 
 def _get_engine():
     """Creates a SQLAlchemy engine from DATABASE_URL."""
-    return create_engine(os.getenv("DATABASE_URL"), future=True)
+    from db.connection import get_engine
+    return get_engine()
 
 
 @router.get("/floats")
 def list_floats(
     page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
+    page_size: int = Query(default=20, ge=1, le=1000),
 ):
     """
     Returns a paginated list of unique float IDs with date range and bounding box.
@@ -44,7 +42,9 @@ def list_floats(
             MAX(latitude)  AS lat_max,
             MIN(longitude) AS lon_min,
             MAX(longitude) AS lon_max,
-            COUNT(*)       AS record_count
+            COUNT(*)       AS record_count,
+            AVG(temp_c)    AS avg_temp,
+            MAX(depth_m)   AS max_depth
         FROM argo_profiles
         GROUP BY float_id
         ORDER BY float_id
@@ -138,7 +138,9 @@ def get_stats():
             MAX(latitude)       AS lat_max,
             MIN(longitude)      AS lon_min,
             MAX(longitude)      AS lon_max,
-            COUNT(DISTINCT float_id) AS unique_floats
+            COUNT(DISTINCT float_id) AS unique_floats,
+            AVG(temp_c)         AS avg_temp,
+            MAX(depth_m)        AS max_depth
         FROM argo_profiles
     """
     with engine.connect() as conn:

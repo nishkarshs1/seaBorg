@@ -1,11 +1,9 @@
 import io
-import os
-
 import pandas as pd
 from dotenv import load_dotenv
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from api.models import ExportRequest
 
@@ -15,8 +13,9 @@ router = APIRouter()
 
 
 def _get_engine():
-    """Creates a SQLAlchemy engine from DATABASE_URL."""
-    return create_engine(os.getenv("DATABASE_URL"), future=True)
+    """Returns a SQLAlchemy engine."""
+    from db.connection import get_engine
+    return get_engine()
 
 
 def _query_data(req: ExportRequest) -> pd.DataFrame:

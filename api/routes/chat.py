@@ -1,4 +1,4 @@
-import os
+
 
 from dotenv import load_dotenv
 from fastapi import APIRouter
@@ -41,24 +41,22 @@ def detect_chart_type(message: str) -> str:
     return "none"
 
 
+import functools
+
+@functools.lru_cache(maxsize=20)
+def _process_chat_cached(message: str):
+    rows = retrieve(message, top_k=5)
+    answer, sql = answer_query(message, rows)
+    chart_type = detect_chart_type(message)
+    float_ids = rows["float_id"].unique().tolist()
+    return answer, sql, chart_type, float_ids
+
 @router.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest) -> ChatResponse:
+def chat(req: ChatRequest) -> ChatResponse:
     """
     Handles POST /chat. Retrieves ARGO context, calls LLM, returns structured response.
-
-    Args:
-        req: ChatRequest with message and optional session_id.
-
-    Returns:
-        ChatResponse with answer, chart_type, float_ids, sql_used, confidence.
-
-    Side effects:
-        Calls FAISS retriever and OpenAI API.
     """
-    rows = retrieve(req.message, top_k=5)
-    answer, sql = answer_query(req.message, rows)
-    chart_type = detect_chart_type(req.message)
-    float_ids = rows["float_id"].unique().tolist()
+    answer, sql, chart_type, float_ids = _process_chat_cached(req.message)
 
     return ChatResponse(
         answer=answer,

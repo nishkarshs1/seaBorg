@@ -6,7 +6,7 @@ import os
 def fetch_sample_data() -> None:
     """Fetches a small ARGO sample region and saves per-float NetCDF files to data/raw/."""
     try:
-        import argopy
+
         from argopy import DataFetcher as ArgoDataFetcher
     except ImportError:
         print("argopy is not installed. Please run: pip install argopy")

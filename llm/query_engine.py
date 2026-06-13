@@ -38,16 +38,20 @@ def answer_query(question: str, context_rows: pd.DataFrame) -> tuple[str, str]:
     if context_rows is None or context_rows.empty:
         return "No data found for the requested region.", sql
 
-    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+    client = Groq(api_key=os.getenv("GROQ_API_KEY"), timeout=30.0)
     model = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
 
     prompt = build_prompt(question, context_rows)
+
 
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.1,
+        timeout=30.0,
     )
+
     answer = response.choices[0].message.content.strip()
 
     return answer, sql

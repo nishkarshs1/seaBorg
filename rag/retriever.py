@@ -63,9 +63,14 @@ def load_index() -> None:
     _df = pd.read_parquet(parquet_path).reset_index(drop=True)
 
 
+import re
+from sqlalchemy import text
+
 def retrieve(user_query: str, top_k: int = 5) -> pd.DataFrame:
     """
-    Retrieves top-k nearest rows from parquet using FAISS similarity search.
+    Retrieves top-k nearest rows using a hybrid approach.
+    1. Checks for float ID (regex). If found, queries DB directly.
+    2. Otherwise, falls back to FAISS semantic search.
 
     Args:
         user_query: Natural language user query.
@@ -75,11 +80,27 @@ def retrieve(user_query: str, top_k: int = 5) -> pd.DataFrame:
         DataFrame of retrieved rows with argo_profiles schema columns.
 
     Side effects:
-        None.
+        May query PostgreSQL if a float ID is detected.
     """
     if _index is None or _df is None:
         raise RuntimeError("Index not loaded. Call load_index() before retrieve().")
 
+
+    # 1. Check for float ID pattern
+    match = re.search(r'(?:[A-Z][0-9]{7}|[0-9]{7})', user_query, re.IGNORECASE)
+    if match:
+        float_id = match.group(0).upper()
+        database_url = os.getenv("DATABASE_URL")
+        if database_url:
+            from db.connection import get_engine
+            engine = get_engine()
+            sql = "SELECT * FROM argo_profiles WHERE float_id = :fid ORDER BY date DESC LIMIT :limit"
+            with engine.connect() as conn:
+                rows = pd.read_sql(text(sql), conn, params={"fid": float_id, "limit": top_k})
+            if not rows.empty:
+                return _ensure_schema(rows)
+
+    # 3. Fallback to FAISS
     query_vec = embed_query(user_query).astype("float32")
     search_k = min(top_k, len(_df))
     _, indices = _index.search(query_vec, search_k)

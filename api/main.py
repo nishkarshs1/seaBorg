@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from api.routes import chat, data, export
 from rag.retriever import load_index
@@ -48,8 +48,8 @@ async def startup() -> None:
     """
     load_index()
 
-    database_url = os.getenv("DATABASE_URL")
-    engine = create_engine(database_url, future=True)
+    from db.connection import get_engine
+    engine = get_engine()
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
 

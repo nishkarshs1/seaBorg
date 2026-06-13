@@ -1,15 +1,19 @@
 import numpy as np
+
+import os
+
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["HF_HUB_OFFLINE"] = "1"
+
 from sentence_transformers import SentenceTransformer
 
+# Initialize model immediately to avoid PyTorch deadlock inside threadpool on Windows
+print("Initializing SentenceTransformer...", flush=True)
+_model = SentenceTransformer("all-MiniLM-L6-v2")
+print("SentenceTransformer ready.", flush=True)
 
-_model: SentenceTransformer | None = None
-
-
-def _get_model() -> SentenceTransformer:
-    """Lazily loads and returns the embedding model singleton."""
-    global _model
-    if _model is None:
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
+def _get_model():
     return _model
 
 

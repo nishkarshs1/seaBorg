@@ -50,7 +50,7 @@ def generate_sql(question: str) -> str:
         Makes a Groq API call.
     """
     enriched = _preprocess_question(question)
-    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    client = Groq(api_key=os.getenv("GROQ_API_KEY"), timeout=30.0)
     model = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
 
     response = client.chat.completions.create(

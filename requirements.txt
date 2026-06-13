@@ -1,26 +1,29 @@
-fastapi
-uvicorn[standard]
+# Data Ingestion
+xarray==2024.3.0
+netCDF4==1.6.5
+
+# Database
+sqlalchemy==2.0.29
+psycopg2-binary==2.9.9
+
+# RAG & Embeddings
+sentence-transformers==2.7.0
+faiss-cpu==1.8.0
+
+# LLM
+groq==0.5.0
+
+# Backend API
+fastapi==0.136.1
+uvicorn[standard]==0.46.0
 pydantic>=2
-python-dotenv
 
-sqlalchemy
-psycopg2-binary
+# Visualization & Frontend
+plotly==6.8.0
+streamlit==1.58.0
 
-pandas
-numpy
-pyarrow
-
-xarray
-netCDF4
-
-sentence-transformers
-faiss-cpu
-
-groq
-
-plotly
-streamlit
-
-pytest
-httpx
-argopy
+# Utilities
+pandas==3.0.3
+numpy==2.4.6
+pyarrow==24.0.0
+python-dotenv==1.2.2
