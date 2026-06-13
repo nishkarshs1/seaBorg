@@ -27,5 +27,5 @@ COPY . .
 EXPOSE 8001
 EXPOSE 8501
 
-# Start FastAPI backend using sh -c to properly evaluate the PORT environment variable
-CMD ["sh", "-c", "uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start FastAPI backend using the Python entrypoint to safely handle the PORT
+CMD ["python", "start_server.py"]
