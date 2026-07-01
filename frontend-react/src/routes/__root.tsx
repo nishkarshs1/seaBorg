@@ -78,14 +78,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SeaBorg — Ocean Intelligence" },
+      { title: "SeaBorg" },
       {
         name: "description",
         content:
           "SeaBorg is an AI-powered ocean intelligence platform. Query, explore, and visualize global ARGO float data in plain English.",
       },
       { name: "author", content: "SeaBorg" },
-      { property: "og:title", content: "SeaBorg — Ocean Intelligence" },
+      { property: "og:title", content: "SeaBorg" },
       {
         property: "og:description",
         content:
@@ -95,6 +95,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary" },
     ],
     links: [
+      {
+        rel: "icon",
+        type: "image/svg+xml",
+        href: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>",
+      },
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },

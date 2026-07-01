@@ -25,7 +25,7 @@ import { useStore, type FilterRule, type ExplorerFilter } from "@/store";
 export const Route = createFileRoute("/explorer")({
   head: () => ({
     meta: [
-      { title: "Data Explorer — SeaBorg" },
+      { title: "Explorer | SeaBorg" },
       {
         name: "description",
         content: "Interactive global map of ARGO ocean floats with filterable metrics.",

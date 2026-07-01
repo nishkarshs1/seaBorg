@@ -31,7 +31,7 @@ import { getStats } from "@/lib/api";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "Architecture — SeaBorg Ocean Intelligence" },
+      { title: "Architecture | SeaBorg" },
       {
         name: "description",
         content:

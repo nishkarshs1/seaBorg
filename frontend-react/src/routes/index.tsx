@@ -20,7 +20,7 @@ import { StatusDot } from "@/components/ui/StatusDot";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — SeaBorg" },
+      { title: "Dashboard | SeaBorg" },
       {
         name: "description",
         content: "Real-time overview of the SeaBorg ocean intelligence platform.",

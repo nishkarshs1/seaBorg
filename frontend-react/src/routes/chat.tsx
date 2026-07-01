@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/chat")({
   head: () => ({
     meta: [
-      { title: "Ocean Chat — SeaBorg" },
+      { title: "Chat | SeaBorg" },
       {
         name: "description",
         content:

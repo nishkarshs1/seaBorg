@@ -11,7 +11,7 @@ import { histogramTemp, histogramDepth, tsDiagram, timeseriesAnalytics } from "@
 export const Route = createFileRoute("/analytics")({
   head: () => ({
     meta: [
-      { title: "Analytics — SeaBorg" },
+      { title: "Analytics | SeaBorg" },
       {
         name: "description",
         content: "Advanced oceanographic analytics: distributions, T-S diagrams, timeseries.",

@@ -21,7 +21,7 @@ import { MetricCard } from "@/components/ui/MetricCard";
 export const Route = createFileRoute("/evaluation")({
   head: () => ({
     meta: [
-      { title: "System Reliability & Evaluation — SeaBorg" },
+      { title: "Reliability | SeaBorg" },
       {
         name: "description",
         content:
