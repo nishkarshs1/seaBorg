@@ -25,8 +25,8 @@ if _frontend_url:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if _environment != "production" else _origins,
-    allow_credentials=False if _environment != "production" else True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
