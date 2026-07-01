@@ -26,6 +26,6 @@ def summarise_row(row: dict | pd.Series) -> str:
 
     return (
         f"Float {float_id} recorded a temperature of {temp_c:.1f}°C and salinity of "
-        f"{salinity:.2f} PSU at {round(depth_m):.0f}m depth on {date} at coordinates "
+        f"{salinity:.2f} PSU at {round(depth_m):.0f}m depth/pressure on {date} at coordinates "
         f"({lat:.2f}, {lon:.2f})."
     )

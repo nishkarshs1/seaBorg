@@ -8,7 +8,7 @@ def plot_depth_profile(df: pd.DataFrame, float_id: str, variable: str = "temp_c"
     if df.empty:
         return px.line(title="No Data Available", template="plotly_dark")
         
-    df_filtered = df[df["float_id"] == str(float_id)].copy()
+    df_filtered = df[df["float_id"].astype(str) == str(float_id)].copy()
     if df_filtered.empty:
         return px.line(title=f"No Data for Float {float_id}", template="plotly_dark")
         

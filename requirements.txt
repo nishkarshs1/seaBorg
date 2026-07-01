@@ -21,7 +21,7 @@ pydantic>=2
 
 # Visualization & Frontend
 plotly==6.8.0
-streamlit==1.58.0
+reportlab>=4.1.0
 
 # Utilities
 pandas==3.0.3

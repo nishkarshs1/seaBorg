@@ -23,7 +23,7 @@ def run():
     random.shuffle(floats)
     
     downloaded = 0
-    target_count = 20
+    target_count = 35
     
     for float_dir in floats:
         if downloaded >= target_count:

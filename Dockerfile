@@ -26,9 +26,8 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 # Copy the rest of the application code
 COPY . .
 
-# Expose ports for backend and frontend
+# Expose backend port
 EXPOSE 8001
-EXPOSE 8501
 
 # Start FastAPI backend using the Python entrypoint to safely handle the PORT
 CMD ["python", "start_server.py"]

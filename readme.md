@@ -1,13 +1,12 @@
 <div align="center">
   <h1>SeaBorg 🌊</h1>
   <h3>AI-Powered Ocean Intelligence Platform</h3>
-  <p>Query, explore, and visualise <strong>209,767 real ARGO float sensor readings</strong> using plain natural language.<br/>Ask about ocean temperature, salinity, or depth - get grounded AI answers with live Plotly charts.</p>
+  <p>Query, explore, and visualise <strong>694,182 real ARGO float sensor readings</strong> using plain natural language.<br/>Ask about ocean temperature, salinity, or depth - get grounded AI answers with live Plotly charts.</p>
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit)](https://seaborg.streamlit.app)
-[![Backend](https://img.shields.io/badge/Backend-Railway-8B5CF6?style=for-the-badge&logo=railway)](https://seaborg-production.up.railway.app)
+[![React](https://img.shields.io/badge/React-Frontend-61DAFB?style=for-the-badge&logo=react)](http://localhost:8080)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi)](http://localhost:8001)
 [![Docker](https://img.shields.io/badge/Docker-nishkarshs1%2Fseaborg-2496ED?style=for-the-badge&logo=docker)](https://hub.docker.com/r/nishkarshs1/seaborg)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![ACL 2024](https://img.shields.io/badge/Based_on-OceanGPT_ACL_2024-gold?style=for-the-badge)](https://arxiv.org/abs/2310.02031)
 
 </div>
@@ -23,7 +22,7 @@ Type _"What is the average temperature of the Indian Ocean?"_ and SeaBorg retrie
 **Ocean Chat - Natural language querying with live ARGO float map**
 <img src="screenshots/chat.png" alt="Ocean Chat" width="900" />
 
-**Data Explorer - 209,767 readings across 23 floats spanning 2002 to 2026**
+**Data Explorer - 694,182 readings across 43 floats spanning 2002 to 2026**
 <img src="screenshots/explorer.png" alt="Data Explorer" width="900" />
 
 **How It Works - Full ML pipeline with algorithm cards and system metrics**
@@ -32,16 +31,19 @@ Type _"What is the average temperature of the Indian Ocean?"_ and SeaBorg retrie
 **Advanced Analytics - T-S diagrams, depth distributions, temporal analysis**
 <img src="screenshots/analytics.png" alt="Analytics" width="900" />
 
+**System Reliability - RAGAS accuracy scorecards, stress testing benchmarks, and downloadable PDF reports**
+<img src="screenshots/evaluation.png" alt="System Reliability" width="900" />
+
 ## System Metrics
 
 | Metric                    | Value           |
 | ------------------------- | --------------- |
-| **ARGO Records**          | **209,767**     |
-| **Active Floats**         | **23**          |
+| **ARGO Records**          | **694,182**     |
+| **Active Floats**         | **43**          |
 | **Date Coverage**         | **2002 - 2026** |
 | **Max Depth Recorded**    | **2,054m**      |
 | **Embedding Dimensions**  | **384D**        |
-| **FAISS Retrieval Speed** | **16.85ms**     |
+| **FAISS Retrieval Speed** | **1.44ms**      |
 | **QC Pass Rate**          | **75.34%**      |
 | **Groq API Latency**      | **~1.2s**       |
 | **Avg LLM Tokens**        | **84**          |
@@ -53,15 +55,15 @@ Type _"What is the average temperature of the Indian Ocean?"_ and SeaBorg retrie
 User Question (natural language)
         |
         v
-Streamlit Frontend (4 pages) - seaborg.streamlit.app
+React Frontend (TanStack Start) - http://localhost:8080
         |  POST /api/chat
         v
-FastAPI Backend (Railway) - seaborg-production.up.railway.app
+FastAPI Backend (Local/Uvicorn) - http://localhost:8001
         |
         +---> RAG Retriever
         |         |
         |         v
-        |     FAISS Index (209,767 vectors x 384D)
+        |     FAISS Index (694,182 vectors x 384D)
         |         |
         |         v
         |     Top-5 relevant ARGO sensor records
@@ -104,16 +106,17 @@ Stage 3: Embeddings
         v
 Stage 4: FAISS Index
         indexer.py    - IndexFlatL2, exact L2 nearest neighbor
-                        209,767 vectors indexed
+                        694,182 vectors indexed
         |
         v  [At query time]
 Stage 5: Semantic Retrieval
-        retriever.py  - Question -> vector -> top-5 nearest ARGO records (16.85ms)
+        retriever.py  - Question -> vector -> top-5 nearest ARGO records (1.44ms)
         |
         v
 Stage 6: LLM Generation
         query_engine.py - Context + question -> LLaMA 3 via Groq -> grounded answer
         |
+        v
 Stage 7: NL-to-SQL
         nl_to_sql.py  - Question -> PostgreSQL query + 7-keyword safety blocklist
 ```
@@ -130,8 +133,8 @@ Stage 7: NL-to-SQL
 **FAISS (Facebook AI Similarity Search)**
 
 - Index type: IndexFlatL2 - exact L2 Euclidean distance search
-- Scale: 209,767 vectors indexed
-- Speed: 16.85ms average retrieval on CPU
+- Scale: 694,182 vectors indexed
+- Speed: 1.44ms average retrieval on CPU
 
 **RAG (Retrieval-Augmented Generation)**
 
@@ -190,12 +193,13 @@ Ocean data changes constantly. A fine-tuned model would go stale immediately. RA
 
 ## Pages
 
-| Page              | What it shows                                                                                                                                    |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Ocean Chat**    | Two-column chat + live Plotly chart (map/profile/timeseries auto-selected). Generated SQL visible in expander. CSV download.                     |
-| **Data Explorer** | Stats cards (209,767 records, 23 floats, 2002-2026). Interactive world map. Float summary table.                                                 |
-| **How It Works**  | Full pipeline diagram. 6 ML algorithm cards. 8 system performance metrics. Why RAG comparison table. ARGO float science. OceanGPT paper section. |
-| **Analytics**     | Temperature distribution. Depth distribution. T-S diagram (colored by depth). Readings over time. Float comparison charts.                       |
+| Page               | What it shows                                                                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Ocean Chat**     | Two-column chat + live Plotly chart (map/profile/timeseries auto-selected). Generated SQL visible in expander. CSV download.                     |
+| **Data Explorer**  | Stats cards (694,182 records, 43 floats, 2002-2026). Interactive world map with custom rule-based filter builder (filtering by temp, salinity, depth, coordinates), floating filter history panel, and a float summary table. |
+| **How It Works**   | Full pipeline diagram. 6 ML algorithm cards. 8 system performance metrics. Why RAG comparison table. ARGO float science. OceanGPT paper section. |
+| **Analytics**      | Temperature distribution. Depth distribution. T-S diagram (colored by depth). Readings over time. Float comparison charts.                       |
+| **System Reliability**| RAG Accuracy metrics (Faithfulness, Relevancy, Recall, Precision), pass rate logs for multi-turn adversarial stress testing, and PDF download.  |
 
 ## API Reference
 
@@ -270,24 +274,32 @@ python scripts/run_ingestion.py
 python scripts/build_index.py
 
 # 7. Start the backend (Terminal 1)
-uvicorn api.main:app --reload --port 8001
+python start_server.py
+# Running on http://localhost:8001
 
-# 8. Start the frontend (Terminal 2)
-streamlit run frontend/app.py
-# Opens at http://localhost:8501
+# 8. Start the React frontend (Terminal 2)
+cd frontend-react
+npm install
+npm run dev
+# Opens at http://localhost:8080
 ```
 
 Get a free Groq API key at [console.groq.com](https://console.groq.com)
 
 ## Environment Variables
 
+### Backend Configuration (`.env`)
 ```bash
 DATABASE_URL=postgresql://user:password@localhost:5432/seaborg
 GROQ_API_KEY=your_groq_api_key_here
-BACKEND_URL=http://localhost:8001
+ENVIRONMENT=development
+FRONTEND_URL=http://localhost:8080
 FAISS_INDEX_PATH=indexes/argo.faiss
 PARQUET_PATH=data/processed/argo.parquet
 LLM_MODEL=llama-3.1-8b-instant
+### Frontend Configuration (`frontend-react/.env`)
+```bash
+VITE_API_URL=http://localhost:8001
 ```
 
 ## Project Structure
@@ -295,24 +307,31 @@ LLM_MODEL=llama-3.1-8b-instant
 ```
 seaBorg/
 ├── api/
-│   ├── main.py             # FastAPI app + startup
+│   ├── main.py             # FastAPI app + CORS configuration
 │   ├── models.py           # Pydantic schemas
 │   └── routes/
-│       ├── chat.py         # POST /api/chat
+│       ├── chat.py         # POST /api/chat (stateless RAG)
 │       ├── data.py         # GET /api/floats, /api/stats
 │       └── export.py       # POST /api/export
-├── frontend/
-│   ├── app.py              # Streamlit entry + global CSS
-│   ├── components/
-│   │   ├── sidebar.py
-│   │   ├── chat_panel.py
-│   │   └── chart_panel.py
-│   └── pages/
-│       ├── 1_chat.py
-│       ├── 2_explorer.py
-│       ├── 3_about.py
-│       └── 4_analytics.py
+├── db/
+│   └── connection.py       # SQLAlchemy engine and connection helper
+├── frontend-react/         # TanStack Start React Frontend
+│   ├── src/
+│   │   ├── routes/
+│   │   │   ├── index.tsx         # Dashboard / Entry
+│   │   │   ├── chat.tsx          # Ocean Chat (Plotly widgets)
+│   │   │   ├── explorer.tsx      # Data Explorer (Mercator scattergeo)
+│   │   │   ├── analytics.tsx     # Advanced Analytics (T-S diagrams, box plots)
+│   │   │   ├── about.tsx         # How It Works / Architectural Deep Dive
+│   │   │   └── evaluation.tsx    # System Reliability Dashboard (Accuracy stats)
+│   │   ├── components/           # UI elements & layout wrappers
+│   │   └── lib/
+│   │       ├── api.ts            # Dynamic Axios client
+│   │       └── mocks.ts          # Charts fallbacks and static metrics
+│   ├── vite.config.ts            # Vite & Nitro compiler configuration
+│   └── package.json
 ├── ingestion/
+│   ├── downloader.py       # Raw NetCDF file downloader
 │   ├── parser.py           # NetCDF parsing with xarray
 │   ├── qc_filter.py        # Quality control filtering
 │   └── db_loader.py        # PostgreSQL + Parquet writer
@@ -330,19 +349,29 @@ seaBorg/
 │   ├── profile_chart.py
 │   └── timeseries_chart.py
 ├── scripts/
-│   ├── setup_db.py
-│   ├── run_ingestion.py
-│   ├── build_index.py
-│   └── evaluate_rag.py
+│   ├── setup_db.py         # Database initialization script
+│   ├── run_ingestion.py    # Main ETL pipeline runner
+│   ├── build_index.py      # FAISS index builder script
+│   ├── download_argo.py    # Raw data fetching utility
+│   ├── download_incois.py  # INCOIS dataset mirror utility
+│   ├── evaluate_rag.py     # Offline retrieval/faithfulness evaluator
+│   ├── fetch_sample_data.py # Sample mock loader script
+│   └── generate_report_pdf.py # Report PDF compiler script
+├── tests/
+│   ├── test_regression_suite.py # 15 scenario regression runs
+│   ├── evaluate_rag.py          # Custom RAGAS-style evaluator
+│   ├── test_chat_report_export.py # Chat export validation tests
+│   └── verify_visualization_rag.py # Visualizer alignment validation tests
 ├── Dockerfile
 ├── .env.example
-└── requirements.txt
+├── requirements.txt
+└── start_server.py         # API uvicorn service startup entrypoint
 ```
 
 ## Author
 
 **Nishkarsh Sharma**
 B.Tech CSE, IIITDM Jabalpur (2nd Year)
-[GitHub](https://github.com/nishkarshs1) • [Live Demo](https://seaborg.streamlit.app) • [Docker Hub](https://hub.docker.com/r/nishkarshs1/seaborg)
+[GitHub](https://github.com/nishkarshs1) • [Docker Hub](https://hub.docker.com/r/nishkarshs1/seaborg)
 
 _SeaBorg - Making ocean data accessible to everyone._

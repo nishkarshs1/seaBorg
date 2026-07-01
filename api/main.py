@@ -14,15 +14,19 @@ app = FastAPI(title="SeaBorg API", version="1.0.0")
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 _environment = os.getenv("ENVIRONMENT", "development")
-if _environment == "production":
-    _origins = [os.getenv("FRONTEND_URL", "")]
-else:
-    _origins = ["*"]
+_origins = [
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    "http://localhost:3000",
+]
+_frontend_url = os.getenv("FRONTEND_URL")
+if _frontend_url:
+    _origins.append(_frontend_url)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins,
-    allow_credentials=True,
+    allow_origins=["*"] if _environment != "production" else _origins,
+    allow_credentials=False if _environment != "production" else True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

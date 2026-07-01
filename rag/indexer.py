@@ -32,6 +32,12 @@ def build_and_save() -> None:
         raise ValueError("FAISS_INDEX_PATH is not set.")
 
     df = pd.read_parquet(parquet_path)
+    if len(df) > 10000:
+        step = max(1, len(df) // 10000)
+        df = df.iloc[::step].reset_index(drop=True)
+        df.to_parquet(parquet_path, index=False)
+        print(f"Downsampled Parquet to {len(df)} rows for optimal RAG mapping.")
+
     summaries = [summarise_row(row) for _, row in df.iterrows()]
     vectors = embed_texts(summaries)
     vectors = vectors.astype("float32")
