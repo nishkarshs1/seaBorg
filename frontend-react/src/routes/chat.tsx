@@ -7,9 +7,10 @@ import { Composer } from "@/components/chat/Composer";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { GradientText } from "@/components/ui/GradientText";
 import { useQuery } from "@tanstack/react-query";
-import { getFloatDetail, getFloats, exportData, type ChatResponse } from "@/lib/api";
+import { getFloatDetail, getFloats, exportData, getHealth, type ChatResponse } from "@/lib/api";
 import { Shimmer } from "@/components/ui/Shimmer";
 import { cn } from "@/lib/utils";
+import { ConnectionOverlay } from "@/components/ui/ConnectionOverlay";
 
 export const Route = createFileRoute("/chat")({
   head: () => ({
@@ -31,6 +32,22 @@ export const Route = createFileRoute("/chat")({
 });
 
 function ChatPage() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const { data: health } = useQuery({
+    queryKey: ["health"],
+    queryFn: getHealth,
+    refetchInterval: (query) => {
+      const data = query.state.data as any;
+      return data?.status === "ok" ? 30_000 : 3_000;
+    },
+    staleTime: 0,
+  });
+  const online = health?.status === "ok";
+
   const messages = useStore((s) => s.messages);
   const sessions = useStore((s) => s.sessions);
   const activeSessionId = useStore((s) => s.activeSessionId);
@@ -319,6 +336,10 @@ function ChatPage() {
       console.error("Export failed", err);
     }
   };
+
+  if (mounted && !online) {
+    return <ConnectionOverlay />;
+  }
 
   return (
     <div className="flex h-screen flex-col px-6 py-6 lg:px-10">

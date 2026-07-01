@@ -16,6 +16,7 @@ import { MetricCard } from "@/components/ui/MetricCard";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { GradientText } from "@/components/ui/GradientText";
 import { StatusDot } from "@/components/ui/StatusDot";
+import { ConnectionOverlay } from "@/components/ui/ConnectionOverlay";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -60,34 +61,14 @@ function Dashboard() {
   const fmt = (n?: number) => (n ? n.toLocaleString("en-US") : "—");
 
   if (mounted && !online) {
-    return (
-      <div className="mx-auto w-full max-w-7xl px-6 py-10 lg:px-10 flex flex-col items-center justify-center min-h-[450px]">
-        <GlassCard className="p-8 max-w-md w-full text-center flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 animate-pulse">
-            <Radio className="h-6 w-6" />
-          </div>
-          <h2 className="text-xl font-semibold text-foreground">
-            Waiting for backend connection...
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            Please start the SeaBorg API server. The dashboard and metrics will load automatically
-            once a connection is established.
-          </p>
-        </GlassCard>
-      </div>
-    );
+    return <ConnectionOverlay />;
   }
 
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-10 lg:px-10">
       {/* Hero */}
       <section className="mb-10">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--glass-border)] bg-white/[0.02] px-3 py-1 text-xs text-muted-foreground">
-          <StatusDot color={mounted && online ? "green" : "amber"} />
-          <span>
-            {mounted && online ? "All systems nominal · 99.98% uptime" : "System Status Degraded"}
-          </span>
-        </div>
+
         <h1 className="text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
           <GradientText>🌊 SeaBorg</GradientText>
         </h1>
