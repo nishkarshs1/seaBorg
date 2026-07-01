@@ -77,7 +77,7 @@ export const useStore = create<ChatStore>()(
       sidebarCollapsed: false,
       chatSidebarCollapsed: false,
       selectedOcean: "All Oceans",
-      theme: "dark",
+      theme: "light",
 
       // Explorer Filters initial state
       explorerFilters: [
