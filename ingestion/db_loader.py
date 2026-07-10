@@ -29,13 +29,22 @@ def save_to_postgres(df: pd.DataFrame) -> None:
 
     Side effects:
         Writes rows to PostgreSQL and prints row count loaded.
+        Issues a CHECKPOINT to reclaim WAL disk space on constrained volumes.
     """
     if df.empty:
         print("Loaded 0 rows into PostgreSQL (empty DataFrame).")
         return
 
     engine = _get_engine()
-    df.to_sql("argo_profiles", engine, if_exists="append", index=False)
+    # Use small chunks to keep WAL size manageable on Railway's 512MB volume
+    df.to_sql("argo_profiles", engine, if_exists="append", index=False, chunksize=2000)
+
+    # Force WAL cleanup after each float to reclaim disk space
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        conn.execute(text("CHECKPOINT"))
+        conn.commit()
+
     print(f"Loaded {len(df)} rows into PostgreSQL.")
 
 

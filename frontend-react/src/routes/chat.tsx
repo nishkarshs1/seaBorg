@@ -7,7 +7,7 @@ import { Composer } from "@/components/chat/Composer";
 import { PlotlyChart } from "@/components/charts/PlotlyChart";
 import { GradientText } from "@/components/ui/GradientText";
 import { useQuery } from "@tanstack/react-query";
-import { getFloatDetail, getFloats, exportData, getHealth, type ChatResponse } from "@/lib/api";
+import { getFloatDetail, getFloats, exportData, getHealth, API_URL, type ChatResponse } from "@/lib/api";
 import { Shimmer } from "@/components/ui/Shimmer";
 import { cn } from "@/lib/utils";
 import { ConnectionOverlay } from "@/components/ui/ConnectionOverlay";
@@ -142,7 +142,7 @@ function ChatPage() {
         history,
       };
 
-      const response = await fetch("http://localhost:8001/api/export_report", {
+      const response = await fetch(`${API_URL}/api/export_report`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
