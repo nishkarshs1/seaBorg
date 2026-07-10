@@ -193,13 +193,13 @@ Ocean data changes constantly. A fine-tuned model would go stale immediately. RA
 
 ## Pages
 
-| Page               | What it shows                                                                                                                                    |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Ocean Chat**     | Two-column chat + live Plotly chart (map/profile/timeseries auto-selected). Generated SQL visible in expander. CSV download.                     |
-| **Data Explorer**  | Stats cards (694,182 records, 43 floats, 2002-2026). Interactive world map with custom rule-based filter builder (filtering by temp, salinity, depth, coordinates), floating filter history panel, and a float summary table. |
-| **How It Works**   | Full pipeline diagram. 6 ML algorithm cards. 8 system performance metrics. Why RAG comparison table. ARGO float science. OceanGPT paper section. |
-| **Analytics**      | Temperature distribution. Depth distribution. T-S diagram (colored by depth). Readings over time. Float comparison charts.                       |
-| **System Reliability**| RAG Accuracy metrics (Faithfulness, Relevancy, Recall, Precision), pass rate logs for multi-turn adversarial stress testing, and PDF download.  |
+| Page                   | What it shows                                                                                                                                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ocean Chat**         | Two-column chat + live Plotly chart (map/profile/timeseries auto-selected). Generated SQL visible in expander. CSV download.                                                                                                  |
+| **Data Explorer**      | Stats cards (694,182 records, 43 floats, 2002-2026). Interactive world map with custom rule-based filter builder (filtering by temp, salinity, depth, coordinates), floating filter history panel, and a float summary table. |
+| **How It Works**       | Full pipeline diagram. 6 ML algorithm cards. 8 system performance metrics. Why RAG comparison table. ARGO float science. OceanGPT paper section.                                                                              |
+| **Analytics**          | Temperature distribution. Depth distribution. T-S diagram (colored by depth). Readings over time. Float comparison charts.                                                                                                    |
+| **System Reliability** | RAG Accuracy metrics (Faithfulness, Relevancy, Recall, Precision), pass rate logs for multi-turn adversarial stress testing, and PDF download.                                                                                |
 
 ## API Reference
 
@@ -289,7 +289,8 @@ Get a free Groq API key at [console.groq.com](https://console.groq.com)
 ## Environment Variables
 
 ### Backend Configuration (`.env`)
-```bash
+
+````bash
 DATABASE_URL=postgresql://user:password@localhost:5432/seaborg
 GROQ_API_KEY=your_groq_api_key_here
 ENVIRONMENT=development
@@ -300,7 +301,7 @@ LLM_MODEL=llama-3.1-8b-instant
 ### Frontend Configuration (`frontend-react/.env`)
 ```bash
 VITE_API_URL=http://localhost:8001
-```
+````
 
 ## Project Structure
 
