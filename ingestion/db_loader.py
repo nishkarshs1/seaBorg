@@ -39,11 +39,14 @@ def save_to_postgres(df: pd.DataFrame) -> None:
     # Use small chunks to keep WAL size manageable on Railway's 512MB volume
     df.to_sql("argo_profiles", engine, if_exists="append", index=False, chunksize=2000)
 
-    # Force WAL cleanup after each float to reclaim disk space
-    from sqlalchemy import text
-    with engine.connect() as conn:
-        conn.execute(text("CHECKPOINT"))
-        conn.commit()
+    # Attempt WAL cleanup if supported by host permissions
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("CHECKPOINT"))
+            conn.commit()
+    except Exception:
+        pass  # Cloud hosts (Supabase, Managed PG) handle WAL cleanup automatically
 
     print(f"Loaded {len(df)} rows into PostgreSQL.")
 

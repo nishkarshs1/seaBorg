@@ -103,11 +103,14 @@ def _auto_seed_database(engine) -> None:
             print("[AUTO-SEED] Parquet file is empty. Nothing to seed.")
             return
 
-        # Insert in chunks and checkpoint to keep WAL size manageable on Railway's 512MB volume
+        # Insert in chunks and attempt checkpoint if supported by host
         df.to_sql("argo_profiles", engine, if_exists="append", index=False, chunksize=2000)
-        with engine.connect() as conn:
-            conn.execute(text("CHECKPOINT"))
-            conn.commit()
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("CHECKPOINT"))
+                conn.commit()
+        except Exception:
+            pass
         print(f"[AUTO-SEED] Successfully loaded {len(df)} rows into argo_profiles.")
 
     except Exception as e:
