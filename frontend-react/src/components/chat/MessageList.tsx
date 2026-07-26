@@ -9,9 +9,15 @@ export function MessageList() {
   const pending = useStore((s) => s.pending);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Track the length of the last AI answer for auto-scroll during streaming.
+  // Always a number (0 if no AI message) so the useEffect dependency array is stable.
+  const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+  const lastAnswerLen = lastMsg && lastMsg.role === "ai" ? lastMsg.payload.answer.length : 0;
+
+  // Auto-scroll to bottom when new messages appear OR when streaming text grows
   useEffect(() => {
     ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: "smooth" });
-  }, [messages.length, pending]);
+  }, [messages.length, lastAnswerLen]);
 
   return (
     <div ref={ref} className="flex-1 space-y-5 overflow-y-auto px-5 py-6">
@@ -53,18 +59,9 @@ export function MessageList() {
           </div>
         </div>
       )}
-      {messages.map((m) => (
-        <MessageBubble key={m.id} msg={m} />
+      {messages.map((m, i) => (
+        <MessageBubble key={m.id} msg={m} isLast={i === messages.length - 1} />
       ))}
-      {pending && (
-        <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
-          <span
-            className="inline-block h-1.5 w-1.5 rounded-full bg-teal"
-            style={{ animation: "pulse-dot 1.4s infinite" }}
-          />
-          <span>SeaBorg is thinking…</span>
-        </div>
-      )}
     </div>
   );
 }

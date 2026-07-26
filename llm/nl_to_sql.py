@@ -16,31 +16,41 @@ FORBIDDEN_KEYWORDS = [
 ]
 
 
-def _preprocess_question(question: str) -> str:
+def _preprocess_question(question: str, ocean: str | None = None) -> str:
     """
     Detect a geographic region in the question and append coordinate
     context so the LLM can generate correct lat/lon WHERE clauses.
+    If the question doesn't have a region but an ocean filter is active,
+    appends that ocean's bounds as context.
     """
     region_name, bounds = detect_region(question)
+    
+    if bounds is None and ocean and ocean.lower() != "all oceans":
+        from llm.geo_mapping import map_region_to_coordinates
+        bounds = map_region_to_coordinates(ocean)
+        region_name = ocean
+
     if bounds is None:
         return question
+        
     hint = (
         f" (Note: '{region_name}' corresponds to latitude BETWEEN "
-        f"{bounds['lat_min']} AND {bounds['lat_max']} AND longitude "
+        f"{bounds['lat_min']} AND {bounds['lat_max']} and longitude "
         f"BETWEEN {bounds['lon_min']} AND {bounds['lon_max']})"
     )
     return question + hint
 
 
-def generate_sql(question: str) -> str:
+def generate_sql(question: str, ocean: str | None = None) -> str:
     """
     Sends SQL_PROMPT to the LLM and returns a raw SQL string.
 
-    If the question mentions a known ocean or sea, coordinate context is
-    injected automatically so the LLM generates correct spatial filters.
+    If the question mentions a known ocean or sea, or if an ocean parameter
+    is provided, coordinate context is injected automatically.
 
     Args:
         question: The user's natural language question.
+        ocean: Optional ocean filter string.
 
     Returns:
         A raw SQL string from the LLM. May be unsafe - always validate
@@ -49,7 +59,7 @@ def generate_sql(question: str) -> str:
     Side effects:
         Makes a Groq API call.
     """
-    enriched = _preprocess_question(question)
+    enriched = _preprocess_question(question, ocean)
     client = Groq(api_key=os.getenv("GROQ_API_KEY"), timeout=30.0)
     model = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
 

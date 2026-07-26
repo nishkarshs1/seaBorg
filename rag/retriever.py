@@ -66,6 +66,17 @@ _ARGO_SCHEMA_COLUMNS = [
 
 def _ensure_schema(df: pd.DataFrame) -> pd.DataFrame:
     """Ensures returned DataFrame matches argo_profiles column schema/order."""
+    if df.empty:
+        return pd.DataFrame(columns=_ARGO_SCHEMA_COLUMNS)
+        
+    # If the returned DataFrame has aggregate columns (e.g. avg, max, min, count)
+    # or does not have standard columns, keep it as-is!
+    has_profile_cols = any(col in df.columns for col in ['float_id', 'temp_c', 'salinity'])
+    is_aggregate = not has_profile_cols or any(c not in _ARGO_SCHEMA_COLUMNS for c in df.columns)
+    
+    if is_aggregate:
+        return df
+        
     out = df.copy()
     for col in _ARGO_SCHEMA_COLUMNS:
         if col not in out.columns:
@@ -142,6 +153,38 @@ def retrieve(user_query: str, top_k: int = 5, ocean: str | None = None, chart_ty
 
     # 1. Check for float ID pattern or region bounds
     float_ids = [fid.upper() for fid in re.findall(r'(?:[A-Z][0-9]{7}|[0-9]{7})', user_query, re.IGNORECASE)]
+
+    # 2. Text-to-SQL Hybrid Database Search (fallback to FAISS/Region bounds if empty or fails)
+    coords = extract_coordinates(user_query)
+    if not float_ids and not coords:
+        try:
+            from llm.nl_to_sql import generate_sql, safe_sql_query
+            from db.connection import get_engine
+            
+            sql_query = generate_sql(user_query, ocean)
+            if sql_query and not sql_query.startswith("--"):
+                sql_clean = sql_query.strip().rstrip(";")
+                
+                # Enforce limit if not already specified and not an aggregate query
+                is_aggregate = any(fn in sql_clean.lower() for fn in ["avg(", "count(", "min(", "max(", "sum("])
+                if "limit" not in sql_clean.lower() and not is_aggregate:
+                    sql_clean = f"{sql_clean} LIMIT {top_k}"
+                    
+                engine = get_engine()
+                df_sql, err = safe_sql_query(sql_clean, engine)
+                
+                if err is None and df_sql is not None and not df_sql.empty:
+                    print(f"[RETRIEVER] Text-to-SQL success. Retrieved {len(df_sql)} rows using: {sql_clean}", flush=True)
+                    res_df = _ensure_schema(df_sql)
+                    res_df.attrs["retrieval_method"] = "PostgreSQL (Text-to-SQL)"
+                    res_df.attrs["sql_query"] = sql_clean
+                    return res_df
+                elif err:
+                    print(f"[RETRIEVER] Text-to-SQL query failed: {err}", flush=True)
+        except Exception as e:
+            print(f"[RETRIEVER] Text-to-SQL retrieval exception: {e}", flush=True)
+
+    # 3. Check for float ID pattern or region bounds (original DB route)
     if float_ids or bounds:
         database_url = os.getenv("DATABASE_URL")
         if database_url:
@@ -208,7 +251,10 @@ def retrieve(user_query: str, top_k: int = 5, ocean: str | None = None, chart_ty
                     for _, r in rows.iterrows():
                         distances_km.append(haversine_distance(lat_q, lon_q, r["latitude"], r["longitude"]))
                     rows["distance_km"] = distances_km
-                return _ensure_schema(rows)
+                res_df = _ensure_schema(rows)
+                res_df.attrs["retrieval_method"] = "PostgreSQL (Direct SQL Filter)"
+                res_df.attrs["sql_query"] = sql
+                return res_df
 
     # 3. Fallback to FAISS (with optional coordinates post-filtering)
     coords = extract_coordinates(user_query)
@@ -270,4 +316,6 @@ def retrieve(user_query: str, top_k: int = 5, ocean: str | None = None, chart_ty
     else:
         rows = candidate_rows.head(k_limit).reset_index(drop=True)
 
-    return _ensure_schema(rows)
+    res_df = _ensure_schema(rows)
+    res_df.attrs["retrieval_method"] = "FAISS Vector Search"
+    return res_df

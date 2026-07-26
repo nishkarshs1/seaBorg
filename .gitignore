@@ -17,9 +17,16 @@ notebooks/
 tree_output.txt
 files.txt
 
-# React Frontend outputs
 frontend-react/.output/
 frontend-react/.wrangler/
 frontend-react/node_modules/
 frontend-react/.tanstack/
 frontend-react/.lovable/
+frontend-react/dist/
+frontend-react/.vite/
+
+# Generated docs, personal revision scripts & temporary exports
+*.pdf
+*.zip
+*.csv
+generate_study_doc.py

@@ -2,8 +2,12 @@ import { motion } from "framer-motion";
 import { Bot, Check, Copy, User } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ChatMessage } from "@/store";
+import { useStore } from "@/store";
 import { SqlAccordion } from "./SqlAccordion";
+import { PipelineAccordion } from "./PipelineAccordion";
 import { cn } from "@/lib/utils";
 
 function CopyButton({ text }: { text: string }) {
@@ -30,9 +34,14 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function MessageBubble({ msg }: { msg: ChatMessage }) {
+export function MessageBubble({ msg, isLast }: { msg: ChatMessage; isLast?: boolean }) {
   const isUser = msg.role === "user";
   const copyText = isUser ? msg.text : msg.payload.answer;
+
+  // Show blinking cursor only on the last AI message while actively streaming
+  const pending = useStore((s) => s.pending);
+  const isStreaming = !isUser && isLast && pending;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -66,8 +75,16 @@ export function MessageBubble({ msg }: { msg: ChatMessage }) {
             <p>{msg.text}</p>
           ) : (
             <>
-              <p className="whitespace-pre-wrap">{msg.payload.answer}</p>
+              {/* Render AI response as formatted markdown with streaming cursor */}
+              <div className={cn("markdown-body", isStreaming && "streaming-cursor")}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.payload.answer}</ReactMarkdown>
+              </div>
               <SqlAccordion sqlText={msg.payload.sql_used} />
+              <PipelineAccordion
+                trace={msg.payload.pipeline_trace}
+                warnings={msg.payload.validation_warnings}
+                sourceFiles={msg.payload.source_files}
+              />
               <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
                 <span className="rounded-full border border-[var(--glass-border)] px-2 py-0.5 font-mono uppercase tracking-wider">
                   {msg.payload.chart_type}
@@ -92,3 +109,4 @@ export function MessageBubble({ msg }: { msg: ChatMessage }) {
     </motion.div>
   );
 }
+

@@ -17,10 +17,13 @@ export type Float = {
 
 export type ChatResponse = {
   answer: string;
-  chart_type: "profile" | "map" | "timeseries" | "scatter";
+  chart_type: "profile" | "map" | "timeseries" | "scatter" | "none" | "ts_diagram" | "3d_trajectory" | "comparison" | "anomaly" | "summary";
   sql_used: string;
   data: Array<Record<string, number | string>>;
   float_ids?: string[];
+  source_files?: string[];
+  pipeline_trace?: string[];
+  validation_warnings?: string[];
 };
 
 export const mockStats: Stats = {

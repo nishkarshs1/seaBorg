@@ -17,10 +17,101 @@ REFUSAL_MESSAGE = (
     "latitude, longitude, date."
 )
 
-def answer_query(question: str, context_rows: pd.DataFrame, history_tuple: tuple | None = None) -> dict:
+def has_ocean_intent(question: str) -> bool:
+    msg = question.lower()
+    
+    # 1. Check for float ID (regex)
     import re
+    if re.search(r'(?:[A-Z][0-9]{7}|[0-9]{7})', msg):
+        return True
+        
+    # 2. Check for coordinates
+    if extract_coordinates(question):
+        return True
+        
+    # 3. Check for keywords
+    ocean_keywords = [
+        "temperature", "temp", "temp_c", "salinity", "depth", "pressure", "dbar",
+        "ocean", "argo", "float", "profile", "sea surface", "anomalies", "trajectory",
+        "journey", "path", "route", "track", "oxygen"
+    ]
+    if any(kw in msg for kw in ocean_keywords):
+        return True
+        
+    return False
+
+
+def is_conversational_only(question: str) -> bool:
+    msg = question.lower().strip().strip("!?.,")
+    
+    # Casual greetings and polite responses
+    greetings = {
+        "hello", "hi", "hey", "greetings", "good morning", "good afternoon", 
+        "good evening", "thanks", "thank you", "ok", "okay", "cool", 
+        "who are you", "what is your name", "what can you do", "help", 
+        "clear", "bye", "goodbye", "exit"
+    }
+    
+    if msg in greetings:
+        return True
+        
+    # Check if the query is very short and has no oceanographic terms
+    if len(msg.split()) <= 3 and not has_ocean_intent(question):
+        return True
+        
+    return False
+
+
+def answer_query(question: str, context_rows: pd.DataFrame, history_tuple: tuple | None = None, ocean: str | None = None) -> dict:
+    import re
+    
+    # Fast Conversational Bypass: Skip SQL generation & database check for greetings
+    if is_conversational_only(question):
+        sql = "-- Conversational query (no database lookup required)"
+        
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"), timeout=30.0)
+        model = os.getenv("LLM_MODEL", "llama-3.1-8b-instant")
+        history = []
+        if history_tuple:
+            for h in history_tuple:
+                role = "user" if h[0] == "user" else "assistant"
+                content = h[1]
+                if content.strip():
+                    history.append({"role": role, "content": content})
+        
+        system_prompt = (
+            "You are SeaBorg, an intelligent AI assistant specialized in oceanography and ARGO float data. "
+            "Acknowledge greetings and casual questions warmly and concisely. Introduce your capabilities briefly "
+            "if asked. Do not try to reference databases or tables for casual chat."
+        )
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(history)
+        messages.append({"role": "user", "content": question})
+        
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.7,
+                timeout=10.0,
+            )
+            answer = response.choices[0].message.content.strip()
+            return {
+                "status": "ok",
+                "refusal_type": None,
+                "answer": answer,
+                "sql": sql
+            }
+        except Exception as e:
+            return {
+                "status": "refused",
+                "refusal_type": "llm_error",
+                "answer": f"Greetings! I had an issue connecting to my LLM engine: {e}",
+                "sql": sql
+            }
+
     try:
-        sql = generate_sql(question)
+        sql = generate_sql(question, ocean)
     except Exception:
         sql = "-- SQL generation failed"
 
@@ -128,7 +219,7 @@ def answer_query(question: str, context_rows: pd.DataFrame, history_tuple: tuple
     if history_tuple:
         history = [{"role": h[0], "text": h[1]} for h in history_tuple]
     system_prompt, user_content, history_messages = build_prompt(
-        question, context_rows if context_rows is not None else pd.DataFrame(), history=history
+        question, context_rows if context_rows is not None else pd.DataFrame(), history=history, sql=sql
     )
 
     # Build proper messages array: system → history turns → current user message
@@ -144,6 +235,7 @@ def answer_query(question: str, context_rows: pd.DataFrame, history_tuple: tuple
                 model=model,
                 messages=messages,
                 temperature=0.1,
+                max_tokens=1024,
                 timeout=30.0,
             )
             answer = response.choices[0].message.content.strip()

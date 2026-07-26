@@ -122,6 +122,221 @@ CONVERSATION HISTORY:
     return response.choices[0].message.content.strip()
 
 
+def _generate_chart_image(turn) -> io.BytesIO | None:
+    """
+    Renders a matplotlib chart from a ChatTurn's data and chart_type.
+    Returns a BytesIO PNG image buffer, or None if the chart cannot be generated.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+
+    data = turn.data
+    chart_type = turn.chart_type
+    if not data or len(data) < 2:
+        return None
+
+    raw_df = pd.DataFrame(data)
+    
+    # Standardize column mappings cleanly without causing duplicate columns
+    clean_cols = {}
+    
+    # We prioritize specific keys for each standardized field
+    mapping_priorities = {
+        "temp_c": ["temp_c", "temp", "temperature"],
+        "depth_m": ["depth_m", "depth", "pressure"],
+        "latitude": ["latitude", "lat"],
+        "longitude": ["longitude", "lng", "lon"],
+        "salinity": ["salinity"],
+        "date": ["date"]
+    }
+    
+    for standard_name, aliases in mapping_priorities.items():
+        for alias in aliases:
+            # Check if this alias is a column name (case-insensitive check)
+            matched_col = next((c for c in raw_df.columns if c.lower() == alias), None)
+            if matched_col is not None:
+                clean_cols[standard_name] = raw_df[matched_col]
+                break
+                
+    # Build clean DataFrame with unique columns
+    df = pd.DataFrame(clean_cols)
+
+    try:
+        fig, ax = plt.subplots(figsize=(7, 4), dpi=120)
+        fig.patch.set_facecolor("#0e1117")
+        ax.set_facecolor("#0e1117")
+        ax.tick_params(colors="#8a8fa3", labelsize=8)
+        for spine in ax.spines.values():
+            spine.set_color("#2a2e3d")
+
+        teal = "#00d4aa"
+        ocean = "#00a8ff"
+
+        if chart_type == "profile":
+            # Depth profile: Depth (Y, inverted) vs Temperature or Salinity (X)
+            q_lower = turn.query.lower()
+            y_col = "salinity" if "salinity" in q_lower and "salinity" in df.columns else ("temp_c" if "temp_c" in df.columns else None)
+            if "depth_m" in df.columns and y_col:
+                df_clean = df.dropna(subset=["depth_m", y_col]).sort_values("depth_m")
+                ax.scatter(df_clean[y_col].astype(float), df_clean["depth_m"].astype(float), 
+                          c=teal, s=12, alpha=0.7, edgecolors="none")
+                ax.plot(df_clean[y_col].astype(float), df_clean["depth_m"].astype(float), 
+                       color=teal, alpha=0.4, linewidth=1)
+                ax.invert_yaxis()
+                label = "Salinity (PSU)" if y_col == "salinity" else "Temperature (°C)"
+                ax.set_xlabel(label, color="#cbd0dc", fontsize=9)
+                ax.set_ylabel("Depth (m)", color="#cbd0dc", fontsize=9)
+                ax.set_title(f"Depth vs {label.split('(')[0].strip()}", color="#cbd0dc", fontsize=11, fontweight="bold")
+
+        elif chart_type == "timeseries":
+            # Timeseries: Date (X) vs Temperature or Salinity (Y)
+            if "date" in df.columns:
+                df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                df = df.dropna(subset=["date"]).sort_values("date")
+                q_lower = turn.query.lower()
+                y_col = "salinity" if "salinity" in q_lower and "salinity" in df.columns else ("temp_c" if "temp_c" in df.columns else ("salinity" if "salinity" in df.columns else None))
+                if y_col and y_col in df.columns:
+                    df_clean = df.dropna(subset=[y_col])
+                    ax.plot(df_clean["date"], df_clean[y_col].astype(float), color=teal, linewidth=1.2, alpha=0.8)
+                    ax.scatter(df_clean["date"], df_clean[y_col].astype(float), c=teal, s=8, alpha=0.6, zorder=5)
+                    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
+                    fig.autofmt_xdate(rotation=30)
+                    label = "Temperature (°C)" if y_col == "temp_c" else "Salinity (PSU)"
+                    ax.set_xlabel("Date", color="#cbd0dc", fontsize=9)
+                    ax.set_ylabel(label, color="#cbd0dc", fontsize=9)
+                    ax.set_title(f"{label.split('(')[0].strip()} Over Time", color="#cbd0dc", fontsize=11, fontweight="bold")
+
+        elif chart_type == "map":
+            # Geographic scatter: Longitude (X) vs Latitude (Y)
+            if "latitude" in df.columns and "longitude" in df.columns:
+                df_clean = df.dropna(subset=["latitude", "longitude"])
+                ax.scatter(df_clean["longitude"].astype(float), df_clean["latitude"].astype(float), 
+                          c=teal, s=18, alpha=0.7, edgecolors=ocean, linewidths=0.5)
+                ax.set_xlabel("Longitude", color="#cbd0dc", fontsize=9)
+                ax.set_ylabel("Latitude", color="#cbd0dc", fontsize=9)
+                ax.set_title("Float Positions", color="#cbd0dc", fontsize=11, fontweight="bold")
+                ax.set_aspect("equal", adjustable="datalim")
+
+        elif chart_type == "scatter":
+            # General scatter: Temperature vs Salinity
+            if "temp_c" in df.columns and "salinity" in df.columns:
+                df_clean = df.dropna(subset=["temp_c", "salinity"])
+                ax.scatter(df_clean["salinity"].astype(float), df_clean["temp_c"].astype(float), 
+                          c=teal, s=12, alpha=0.6, edgecolors="none")
+                ax.set_xlabel("Salinity (PSU)", color="#cbd0dc", fontsize=9)
+                ax.set_ylabel("Temperature (°C)", color="#cbd0dc", fontsize=9)
+                ax.set_title("Temperature vs Salinity", color="#cbd0dc", fontsize=11, fontweight="bold")
+
+        elif chart_type == "ts_diagram":
+            # T-S Diagram: Salinity (X) vs Temperature (Y)
+            if "temp_c" in df.columns and "salinity" in df.columns:
+                df_clean = df.dropna(subset=["temp_c", "salinity"])
+                depth_col = "depth_m" if "depth_m" in df_clean.columns else None
+                if depth_col and df_clean[depth_col].notna().any():
+                    c_vals = df_clean[depth_col].astype(float)
+                else:
+                    c_vals = None
+                scatter = ax.scatter(df_clean["salinity"].astype(float), df_clean["temp_c"].astype(float),
+                                    c=c_vals, cmap="viridis_r" if c_vals is not None else None, s=14, alpha=0.7, edgecolors="none")
+                if c_vals is not None:
+                    cbar = fig.colorbar(scatter, ax=ax, pad=0.02)
+                    cbar.set_label("Depth (m)", color="#cbd0dc", fontsize=8)
+                    cbar.ax.tick_params(colors="#8a8fa3", labelsize=7)
+                ax.set_xlabel("Salinity (PSU)", color="#cbd0dc", fontsize=9)
+                ax.set_ylabel("Temperature (°C)", color="#cbd0dc", fontsize=9)
+                ax.set_title("T-S Diagram", color="#cbd0dc", fontsize=11, fontweight="bold")
+
+        elif chart_type in ("3d_trajectory", "trajectory"):
+            # Trajectory: Longitude (X) vs Latitude (Y)
+            if "latitude" in df.columns and "longitude" in df.columns:
+                if "date" in df.columns:
+                    df = df.sort_values("date")
+                df_clean = df.dropna(subset=["latitude", "longitude"])
+                ax.plot(df_clean["longitude"].astype(float), df_clean["latitude"].astype(float), 
+                        color=ocean, alpha=0.5, linewidth=1.5, zorder=1)
+                ax.scatter(df_clean["longitude"].astype(float), df_clean["latitude"].astype(float), 
+                          c=teal, s=16, alpha=0.8, edgecolors="none", zorder=2)
+                if len(df_clean) >= 2:
+                    ax.scatter(df_clean.iloc[0]["longitude"], df_clean.iloc[0]["latitude"], 
+                               c="#ef4444", s=30, label="Start", zorder=3)
+                    ax.scatter(df_clean.iloc[-1]["longitude"], df_clean.iloc[-1]["latitude"], 
+                               c="#10b981", s=30, label="End", zorder=3)
+                    ax.legend(loc="upper right", fontsize=8, facecolor="#0e1117", edgecolor="#2a2e3d", labelcolor="#cbd0dc")
+                ax.set_xlabel("Longitude", color="#cbd0dc", fontsize=9)
+                ax.set_ylabel("Latitude", color="#cbd0dc", fontsize=9)
+                ax.set_title("Float Trajectory Journey", color="#cbd0dc", fontsize=11, fontweight="bold")
+                ax.set_aspect("equal", adjustable="datalim")
+
+        elif chart_type == "comparison":
+            # Comparison: Bar chart comparing average values across floats
+            if "float_id" in raw_df.columns:
+                y_col = "salinity" if "salinity" in turn.query.lower() and "salinity" in df.columns else ("temp_c" if "temp_c" in df.columns else None)
+                if y_col:
+                    raw_df[y_col] = raw_df[y_col].astype(float)
+                    grouped = raw_df.groupby("float_id")[y_col].mean().dropna()
+                    if not grouped.empty:
+                        bars = ax.bar([str(fid) for fid in grouped.index], grouped.values, color=teal, alpha=0.8, width=0.5)
+                        ax.bar_label(bars, fmt='%.2f', color="#cbd0dc", fontsize=8)
+                        label = "Salinity (PSU)" if y_col == "salinity" else "Temperature (°C)"
+                        ax.set_xlabel("Float ID", color="#cbd0dc", fontsize=9)
+                        ax.set_ylabel(f"Average {label}", color="#cbd0dc", fontsize=9)
+                        ax.set_title(f"Comparison of Average {label.split('(')[0]}", color="#cbd0dc", fontsize=11, fontweight="bold")
+
+        elif chart_type == "anomaly":
+            # Anomaly: Line/Scatter plot highlighting points outside +/- 2 stddev
+            y_col = "salinity" if "salinity" in turn.query.lower() and "salinity" in df.columns else ("temp_c" if "temp_c" in df.columns else None)
+            if y_col and y_col in df.columns:
+                y_vals = df[y_col].dropna().astype(float).values
+                if len(y_vals) > 0:
+                    mean = y_vals.mean()
+                    std = y_vals.std() or 1.0
+                    upper = mean + 2 * std
+                    lower = mean - 2 * std
+                    indices = range(len(y_vals))
+                    ax.plot(indices, y_vals, color="#cbd0dc", alpha=0.3, linewidth=1)
+                    normal_mask = (y_vals >= lower) & (y_vals <= upper)
+                    ax.scatter([i for i in indices if normal_mask[i]], y_vals[normal_mask], c=teal, s=12, label="Normal", alpha=0.7)
+                    ax.scatter([i for i in indices if not normal_mask[i]], y_vals[~normal_mask], c="#ef4444", s=20, label="Anomaly", zorder=5)
+                    ax.axhline(mean, color=ocean, linestyle="--", alpha=0.5, label="Mean")
+                    ax.axhline(upper, color="#ef4444", linestyle=":", alpha=0.5, label="+2 SD")
+                    ax.axhline(lower, color="#ef4444", linestyle=":", alpha=0.5, label="-2 SD")
+                    ax.legend(loc="upper right", fontsize=8, facecolor="#0e1117", edgecolor="#2a2e3d", labelcolor="#cbd0dc")
+                    label = "Salinity (PSU)" if y_col == "salinity" else "Temperature (°C)"
+                    ax.set_xlabel("Data Point Index", color="#cbd0dc", fontsize=9)
+                    ax.set_ylabel(label, color="#cbd0dc", fontsize=9)
+                    ax.set_title(f"{label.split('(')[0]} Anomaly Detection", color="#cbd0dc", fontsize=11, fontweight="bold")
+
+        else:
+            # Fallback
+            if "depth_m" in df.columns and "temp_c" in df.columns:
+                df_clean = df.dropna(subset=["depth_m", "temp_c"]).sort_values("depth_m")
+                ax.scatter(df_clean["temp_c"].astype(float), df_clean["depth_m"].astype(float), c=teal, s=12, alpha=0.7)
+                ax.invert_yaxis()
+                ax.set_xlabel("Temperature (°C)", color="#cbd0dc", fontsize=9)
+                ax.set_ylabel("Depth (m)", color="#cbd0dc", fontsize=9)
+                ax.set_title("Data Visualization", color="#cbd0dc", fontsize=11, fontweight="bold")
+            else:
+                plt.close(fig)
+                return None
+
+        ax.grid(True, alpha=0.1, color="#ffffff")
+        fig.tight_layout()
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", facecolor=fig.get_facecolor(), bbox_inches="tight")
+        plt.close(fig)
+        buf.seek(0)
+        return buf
+    except Exception as e:
+        print(f"[EXPORT] Chart generation failed: {e}", flush=True)
+        try:
+            plt.close(fig)
+        except Exception:
+            pass
+        return None
+
+
 def build_report_pdf(req: ExportReportRequest, summary_text: str | None = None) -> bytes:
     import io
     from reportlab.lib.pagesizes import letter
@@ -240,6 +455,15 @@ def build_report_pdf(req: ExportReportRequest, summary_text: str | None = None) 
             
         turn_container.append(Paragraph(meta_line, body_style))
         turn_container.append(Spacer(1, 8))
+        
+        # Generate and embed chart image if applicable
+        if turn.chart_type not in ("none", "summary") and turn.data and len(turn.data) >= 2:
+            chart_img = _generate_chart_image(turn)
+            if chart_img:
+                from reportlab.platypus import Image
+                turn_container.append(Image(chart_img, width=480, height=280))
+                turn_container.append(Spacer(1, 8))
+        
         story.append(KeepTogether(turn_container))
         
     # SECTION 4: RETRIEVED DATA APPENDIX
@@ -262,11 +486,11 @@ def build_report_pdf(req: ExportReportRequest, summary_text: str | None = None) 
                     dist_val = f"{row.get('distance_km', 'N/A'):.1f}" if isinstance(row.get('distance_km'), (int, float)) else "N/A"
                     
                     r_data = [
-                        str(row.get("float_id", "N/A")),
-                        str(row.get("date", "N/A"))[:10],
-                        f"{row.get('lat', row.get('latitude', 0.0)):.2f}",
-                        f"{row.get('lng', row.get('longitude', 0.0)):.2f}",
-                        f"{row.get('depth', row.get('depth_m', 0.0)):.0f}",
+                        str(row.get("float_id", "N/A") or "N/A"),
+                        str(row.get("date", "N/A") or "N/A")[:10],
+                        f"{float(lat_v):.2f}" if (lat_v := row.get('lat', row.get('latitude'))) is not None else "N/A",
+                        f"{float(lon_v):.2f}" if (lon_v := row.get('lng', row.get('longitude'))) is not None else "N/A",
+                        f"{float(dep_v):.0f}" if (dep_v := row.get('depth', row.get('depth_m'))) is not None else "N/A",
                         temp_val,
                         sal_val,
                         dist_val
@@ -300,6 +524,19 @@ def build_report_pdf(req: ExportReportRequest, summary_text: str | None = None) 
     story.append(Spacer(1, 15))
     story.append(Paragraph("<b>DATA SOURCE & PIPELINE ATTRIBUTION</b>", h1_style))
     story.append(Paragraph("<b>Data Source:</b> Data sourced from ARGO Global Float Array via SeaBorg RAG pipeline.", body_style))
+    
+    # Collect all unique float IDs in report history
+    unique_fids = set()
+    for turn in req.history:
+        if turn.float_ids:
+            for fid in turn.float_ids:
+                if fid and fid.strip():
+                    unique_fids.add(fid.strip())
+    source_files = [f"{fid}_prof.nc" for fid in sorted(unique_fids)]
+    if source_files:
+        files_str = ", ".join(source_files)
+        story.append(Paragraph(f"<b>Source NetCDF Files:</b> {files_str}", body_style))
+        
     story.append(Paragraph("<b>Pipeline Info:</b> Retrieval: FAISS vector index + PostgreSQL | LLM: Llama-3.1-8b-instant via Groq API.", body_style))
     story.append(Paragraph(f"<b>Configuration:</b> Similarity threshold: {SIMILARITY_THRESHOLD:.2f} | Distance guard: 500km.", body_style))
     

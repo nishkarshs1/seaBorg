@@ -38,6 +38,9 @@ type ChatStore = {
 
   theme: "dark" | "light";
 
+  // Streaming state
+  abortController: AbortController | null;
+
   // Explorer Filters State
   explorerFilters: ExplorerFilter[];
   activeFilterId: string | null;
@@ -45,6 +48,10 @@ type ChatStore = {
 
   addUser: (text: string) => void;
   addAi: (payload: ChatResponse) => void;
+  addAiPlaceholder: (messageId: string, initialPayload: ChatResponse) => void;
+  appendAiAnswer: (messageId: string, text: string) => void;
+  setAbortController: (ac: AbortController | null) => void;
+  abortActiveStream: () => void;
   setPending: (v: boolean) => void;
   clear: () => void;
   toggleSidebar: () => void;
@@ -78,6 +85,7 @@ export const useStore = create<ChatStore>()(
       chatSidebarCollapsed: false,
       selectedOcean: "All Oceans",
       theme: "light",
+      abortController: null,
 
       // Explorer Filters initial state
       explorerFilters: [
@@ -229,6 +237,80 @@ export const useStore = create<ChatStore>()(
             messages: activeSession ? activeSession.messages : [],
           };
         }),
+
+      addAiPlaceholder: (messageId, initialPayload) =>
+        set((s) => {
+          const newMessage: ChatMessage = {
+            id: messageId,
+            role: "ai",
+            ts: Date.now(),
+            payload: initialPayload,
+          };
+          const currentActiveId = s.activeSessionId;
+          if (!currentActiveId) return {};
+
+          const nextSessions = s.sessions.map((session) => {
+            if (session.id === currentActiveId) {
+              return {
+                ...session,
+                messages: [...session.messages, newMessage],
+                ts: Date.now(),
+              };
+            }
+            return session;
+          });
+
+          const activeSession = nextSessions.find((x) => x.id === currentActiveId);
+
+          return {
+            sessions: nextSessions,
+            messages: activeSession ? activeSession.messages : [],
+          };
+        }),
+
+      appendAiAnswer: (messageId, text) =>
+        set((s) => {
+          const currentActiveId = s.activeSessionId;
+          if (!currentActiveId) return {};
+
+          const nextSessions = s.sessions.map((session) => {
+            if (session.id === currentActiveId) {
+              return {
+                ...session,
+                messages: session.messages.map((m) => {
+                  if (m.id === messageId && m.role === "ai") {
+                    return {
+                      ...m,
+                      payload: {
+                        ...m.payload,
+                        answer: m.payload.answer + text,
+                      },
+                    };
+                  }
+                  return m;
+                }),
+              };
+            }
+            return session;
+          });
+
+          const activeSession = nextSessions.find((x) => x.id === currentActiveId);
+
+          return {
+            sessions: nextSessions,
+            messages: activeSession ? activeSession.messages : [],
+          };
+        }),
+
+      setAbortController: (ac) => set({ abortController: ac }),
+
+      abortActiveStream: () => {
+        const { abortController } = useStore.getState();
+        if (abortController) {
+          abortController.abort();
+        }
+        set({ abortController: null, pending: false });
+      },
 
       setPending: (v) => set({ pending: v }),
 

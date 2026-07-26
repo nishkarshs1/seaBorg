@@ -692,10 +692,10 @@ function SparseDataFallback({ data, variable }: { data: any[]; variable: string 
       <div className="mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider text-left">
         ⚠️ Sparse Readings ({data.length} records found)
       </div>
-      <div className="overflow-hidden rounded-xl border border-[var(--glass-border)] bg-black/40">
+      <div className="overflow-hidden rounded-xl border border-[var(--glass-border)] bg-black/[0.02] dark:bg-black/40">
         <table className="w-full border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-[var(--glass-border)] bg-white/[0.02] text-muted-foreground font-semibold">
+            <tr className="border-b border-[var(--glass-border)] bg-black/[0.01] dark:bg-white/[0.02] text-muted-foreground font-semibold">
               <th className="p-2.5">Float ID</th>
               <th className="p-2.5">Date</th>
               <th className="p-2.5">Depth</th>
@@ -711,15 +711,15 @@ function SparseDataFallback({ data, variable }: { data: any[]; variable: string 
               return (
                 <tr
                   key={idx}
-                  className="border-b border-white/[0.02] last:border-0 hover:bg-white/[0.01]"
+                  className="border-b border-[var(--glass-border)] last:border-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.01]"
                 >
                   <td className="p-2.5 font-mono text-[11px] font-semibold text-ocean">
-                    {d.id || d.float_id || "N/A"}
+                    {d.float_id || d.id || "N/A"}
                   </td>
                   <td className="p-2.5 font-mono text-[11px] text-muted-foreground">
                     {d.date || "N/A"}
                   </td>
-                  <td className="p-2.5 font-mono text-[11px]">{d.depth ?? d.depth_m}m</td>
+                  <td className="p-2.5 font-mono text-[11px] text-foreground">{d.depth ?? d.depth_m}m</td>
                   <td className="p-2.5 font-mono text-[11px] text-teal font-semibold">
                     {val !== undefined && val !== null ? `${val.toFixed(2)}${suffix}` : "N/A"}
                   </td>
@@ -742,6 +742,7 @@ function Visualizer({
   userQuery: string;
   activeChartType: string;
 }) {
+  const theme = useStore((s) => s.theme);
   const { float_ids = [] } = payload;
   const floatId = float_ids[0];
 
@@ -1400,16 +1401,17 @@ function Visualizer({
     });
 
     // Dynamic region bounds zoom settings
+    const isLight = theme === "light";
     const geoLayout: any = {
       projection: { type: "natural earth" },
       showland: true,
-      landcolor: "#13131c",
+      landcolor: isLight ? "#f8fafc" : "#13131c",
       showocean: true,
-      oceancolor: "#07070d",
+      oceancolor: isLight ? "#e0f2fe" : "#07070d",
       showcoastlines: true,
-      coastlinecolor: "rgba(0,212,170,0.25)",
+      coastlinecolor: isLight ? "rgba(0,180,144,0.25)" : "rgba(0,212,170,0.25)",
       showcountries: true,
-      countrycolor: "rgba(255,255,255,0.05)",
+      countrycolor: isLight ? "rgba(15,23,42,0.05)" : "rgba(255,255,255,0.05)",
       showframe: false,
     };
 

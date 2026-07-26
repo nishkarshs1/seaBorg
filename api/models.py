@@ -16,6 +16,9 @@ class ChatResponse(BaseModel):
     sql_used: str
     confidence: float
     data: list[dict] = []
+    source_files: list[str] = []
+    pipeline_trace: list[str] = []
+    validation_warnings: list[str] = []
 
 
 class FloatDataRequest(BaseModel):
