@@ -147,19 +147,46 @@ def has_ocean_intent(message: str) -> bool:
     return False
 
 
-@functools.lru_cache(maxsize=20)
+def is_explanation_followup(message: str) -> bool:
+    """Checks if the follow-up question is asking to explain or justify a prior answer/calculation."""
+    msg = message.lower().strip()
+    keywords = [
+        "how did you", "how did ou", "how was this", "how was that",
+        "where did", "explain this", "explain that", "explain how",
+        "why is it", "why did you", "how calculated", "what formula",
+        "how did you find", "how did ou find", "where is that from",
+        "how was it found", "how it found", "how you find", "how do you find"
+    ]
+    return any(kw in msg for kw in keywords)
+
+
+def has_explicit_chart_request(message: str) -> bool:
+    """Checks if the query explicitly asks for a chart/visualization."""
+    msg = message.lower()
+    keywords = [
+        "chart", "plot", "graph", "visualize", "map", "profile", 
+        "timeseries", "trend", "trajectory", "journey", "path", "route",
+        "diagram", "compare", "comparison", "anomaly", "anomalies", "show me on",
+        "draw", "display", "render", "3d"
+    ]
+    return any(kw in msg for kw in keywords)
+
+
 def _process_chat_cached(message: str, ocean: str | None = None, history_tuple: tuple | None = None):
     from llm.query_engine import is_conversational_only
     import re as _re
 
-    # â”€â”€ Context Augmentation for Follow-up Queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Context Augmentation for Follow-up Queries ──────────────────────────
     # When a follow-up like "give me exact date" has no ocean intent on its own,
     # extract float IDs and keywords from conversation history to augment the query
     # so retrieval doesn't get bypassed.
     augmented_message = message
     history_context_floats = []
+    has_own_float = bool(_re.search(r'(?:[A-Z][0-9]{7}|[0-9]{7})', message))
+    is_followup = bool(history_tuple and not has_own_float)
+    is_explanation = is_followup and is_explanation_followup(message)
 
-    if history_tuple and not has_ocean_intent(message):
+    if is_followup and not is_explanation:
         # Scan history for float IDs and ocean keywords from previous turns
         for role, text in history_tuple:
             found_fids = _re.findall(r'(?:[A-Z][0-9]{7}|[0-9]{7})', text)
@@ -192,11 +219,15 @@ def _process_chat_cached(message: str, ocean: str | None = None, history_tuple: 
             []
         )
 
-    chart_type = detect_chart_type(message)
+    # For follow-up queries that do NOT explicitly ask for a chart, force chart_type = "none"
+    if is_followup and not has_explicit_chart_request(message):
+        chart_type = "none"
+    else:
+        chart_type = detect_chart_type(message)
+
     pipeline_trace = [f"Router: Classified query chart type as '{chart_type}'"]
     
-    # Use augmented message for ocean intent check so follow-ups with history context pass through
-    should_retrieve = (chart_type != "none") or has_ocean_intent(augmented_message)
+    should_retrieve = (chart_type != "none") or has_ocean_intent(augmented_message) or is_explanation
     
     if should_retrieve:
         top_k = 500 if chart_type == "timeseries" else (100 if chart_type != "none" else 5)
@@ -211,7 +242,10 @@ def _process_chat_cached(message: str, ocean: str | None = None, history_tuple: 
             pipeline_trace.append("Router: Ocean query detected -> Routed to Vector Search Engine")
             pipeline_trace.append(f"Retrieval: Executed FAISS Vector index search -> Retrieved {len(rows)} matching profile(s)")
     else:
-        pipeline_trace.append("Retrieval: Bypassed database search (no oceanographic intent)")
+        if is_explanation:
+            pipeline_trace.append("Retrieval: Bypassed database search (explanation follow-up question -> using conversation history)")
+        else:
+            pipeline_trace.append("Retrieval: Bypassed database search (no oceanographic intent)")
         rows = pd.DataFrame()
         
     # Scientific Validation
@@ -229,6 +263,11 @@ def _process_chat_cached(message: str, ocean: str | None = None, history_tuple: 
     is_aggregate = not rows.empty and ("float_id" not in rows.columns or rows["float_id"].isna().all())
     if is_aggregate:
         chart_type = "none"
+
+    if chart_type == "comparison" and not rows.empty and "float_id" in rows.columns:
+        unique_fids = rows["float_id"].dropna().unique()
+        if len(unique_fids) <= 1:
+            chart_type = "profile"
     
     if chart_type == "timeseries" and not rows.empty:
         num_distinct_dates = 0
@@ -385,17 +424,18 @@ def chat_stream(req: ChatRequest):
                 yield "data: {\"type\": \"done\"}\n\n"
                 return
 
-            history_tuple = None
-            if req.history:
-                history_tuple = tuple(
-                    (h.get("role", ""), h.get("text") or h.get("content", ""))
-                    for h in req.history
-                )
+            has_own_float_stream = bool(re.search(r'(?:[A-Z][0-9]{7}|[0-9]{7})', req.message))
+            is_followup = bool(req.history and not has_own_float_stream)
+            is_explanation = is_followup and is_explanation_followup(req.message)
 
-            chart_type = detect_chart_type(req.message)
+            if is_followup and not has_explicit_chart_request(req.message):
+                chart_type = "none"
+            else:
+                chart_type = detect_chart_type(req.message)
+
             pipeline_trace = [f"Router: Classified query chart type as '{chart_type}'"]
             
-            should_retrieve = (chart_type != "none") or has_ocean_intent(augmented_message)
+            should_retrieve = (chart_type != "none") or has_ocean_intent(augmented_message) or is_explanation
             
             if should_retrieve:
                 top_k = 500 if chart_type == "timeseries" else (100 if chart_type != "none" else 5)
@@ -410,7 +450,10 @@ def chat_stream(req: ChatRequest):
                     pipeline_trace.append("Router: Ocean query detected -> Routed to Vector Search Engine")
                     pipeline_trace.append(f"Retrieval: Executed FAISS Vector index search -> Retrieved {len(rows)} matching profile(s)")
             else:
-                pipeline_trace.append("Retrieval: Bypassed database search (no oceanographic intent)")
+                if is_explanation:
+                    pipeline_trace.append("Retrieval: Bypassed database search (explanation follow-up question -> using conversation history)")
+                else:
+                    pipeline_trace.append("Retrieval: Bypassed database search (no oceanographic intent)")
                 rows = pd.DataFrame()
 
             try:
@@ -542,6 +585,11 @@ def chat_stream(req: ChatRequest):
                 is_aggregate = "float_id" not in rows.columns or rows["float_id"].isna().all()
                 if is_aggregate:
                     chart_type = "none"
+
+                if chart_type == "comparison" and not rows.empty and "float_id" in rows.columns:
+                    unique_fids = rows["float_id"].dropna().unique()
+                    if len(unique_fids) <= 1:
+                        chart_type = "profile"
                 float_ids = [str(fid) for fid in rows["float_id"].dropna().unique().tolist() if fid is not None and not pd.isna(fid)] if "float_id" in rows.columns else []
                 serialized_data = serialize_df(rows)
                 if not float_ids and should_retrieve:
@@ -573,11 +621,17 @@ def chat_stream(req: ChatRequest):
             messages.extend(history_messages)
             messages.append({"role": "user", "content": user_content})
 
+            models_to_try = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "llama-3.2-3b-preview", "gemma2-9b-it"]
+            user_model = os.getenv("LLM_MODEL")
+            if user_model and user_model in models_to_try:
+                models_to_try.remove(user_model)
+                models_to_try.insert(0, user_model)
+
             response = None
-            for attempt in range(15):
+            for current_model in models_to_try:
                 try:
                     response = client.chat.completions.create(
-                        model=model,
+                        model=current_model,
                         messages=messages,
                         temperature=0.1,
                         max_tokens=1024,
@@ -586,12 +640,10 @@ def chat_stream(req: ChatRequest):
                     )
                     break
                 except Exception as e:
-                    if attempt < 14 and ("rate_limit" in str(e).lower() or "429" in str(e) or "limit reached" in str(e).lower()):
-                        wait_time = 2.0 + (attempt * 1.5)
-                        match = re.search(r'try again in (\d+(?:\.\d+)?)s', str(e).lower())
-                        if match:
-                            wait_time = float(match.group(1)) + 0.5
-                        time.sleep(wait_time)
+                    err_str = str(e).lower()
+                    if "rate_limit" in err_str or "429" in err_str or "limit reached" in err_str:
+                        print(f"[DEBUG] Streaming model {current_model} rate limited: {e}. Trying fallback model...", flush=True)
+                        time.sleep(1.0)
                         continue
                     raise e
 

@@ -227,12 +227,20 @@ def answer_query(question: str, context_rows: pd.DataFrame, history_tuple: tuple
     messages.extend(history_messages)
     messages.append({"role": "user", "content": user_content})
     
+    models_to_try = ["llama-3.1-8b-instant", "llama-3.3-70b-versatile", "llama-3.2-3b-preview", "gemma2-9b-it"]
+    user_model = os.getenv("LLM_MODEL")
+    if user_model and user_model in models_to_try:
+        models_to_try.remove(user_model)
+        models_to_try.insert(0, user_model)
+
     import time
     import re
-    for attempt in range(15):
+    answer = None
+    
+    for current_model in models_to_try:
         try:
             response = client.chat.completions.create(
-                model=model,
+                model=current_model,
                 messages=messages,
                 temperature=0.1,
                 max_tokens=1024,
@@ -241,15 +249,15 @@ def answer_query(question: str, context_rows: pd.DataFrame, history_tuple: tuple
             answer = response.choices[0].message.content.strip()
             break
         except Exception as e:
-            if attempt < 14 and ("rate_limit" in str(e).lower() or "429" in str(e) or "limit reached" in str(e).lower()):
-                wait_time = 2.0 + (attempt * 1.5)
-                match = re.search(r'try again in (\d+(?:\.\d+)?)s', str(e).lower())
-                if match:
-                    wait_time = float(match.group(1)) + 0.5
-                print(f"[DEBUG] Rate limited. Sleeping for {wait_time:.2f}s...", flush=True)
-                time.sleep(wait_time)
+            err_str = str(e).lower()
+            if "rate_limit" in err_str or "429" in err_str or "limit reached" in err_str:
+                print(f"[DEBUG] Model {current_model} rate limited: {e}. Trying fallback model...", flush=True)
+                time.sleep(1.0)
                 continue
             raise e
+
+    if answer is None:
+        answer = "I'm experiencing high traffic right now. Please try your request again in a few moments."
     
     is_refusal = (
         "not available in the ARGO dataset" in answer.lower() or

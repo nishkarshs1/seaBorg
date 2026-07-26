@@ -154,9 +154,11 @@ def retrieve(user_query: str, top_k: int = 5, ocean: str | None = None, chart_ty
     # 1. Check for float ID pattern or region bounds
     float_ids = [fid.upper() for fid in re.findall(r'(?:[A-Z][0-9]{7}|[0-9]{7})', user_query, re.IGNORECASE)]
 
-    # 2. Text-to-SQL Hybrid Database Search (fallback to FAISS/Region bounds if empty or fails)
+    # 2. Text-to-SQL Hybrid Database Search (runs for calculations or when no direct float_id match needed)
     coords = extract_coordinates(user_query)
-    if not float_ids and not coords:
+    is_calculation_query = any(kw in user_query.lower() for kw in ["avg", "average", "mean", "min", "minimum", "max", "maximum", "highest", "lowest", "count", "how many", "sum", "total", "ratio"])
+    
+    if (not float_ids and not coords) or is_calculation_query:
         try:
             from llm.nl_to_sql import generate_sql, safe_sql_query
             from db.connection import get_engine
@@ -242,19 +244,22 @@ def retrieve(user_query: str, top_k: int = 5, ocean: str | None = None, chart_ty
 
             coords = extract_coordinates(user_query)
 
-            with engine.connect() as conn:
-                rows = pd.read_sql(text(sql), conn, params=params)
-            if not rows.empty:
-                if coords:
-                    lat_q, lon_q = coords
-                    distances_km = []
-                    for _, r in rows.iterrows():
-                        distances_km.append(haversine_distance(lat_q, lon_q, r["latitude"], r["longitude"]))
-                    rows["distance_km"] = distances_km
-                res_df = _ensure_schema(rows)
-                res_df.attrs["retrieval_method"] = "PostgreSQL (Direct SQL Filter)"
-                res_df.attrs["sql_query"] = sql
-                return res_df
+            try:
+                with engine.connect() as conn:
+                    rows = pd.read_sql(text(sql), conn, params=params)
+                if not rows.empty:
+                    if coords:
+                        lat_q, lon_q = coords
+                        distances_km = []
+                        for _, r in rows.iterrows():
+                            distances_km.append(haversine_distance(lat_q, lon_q, r["latitude"], r["longitude"]))
+                        rows["distance_km"] = distances_km
+                    res_df = _ensure_schema(rows)
+                    res_df.attrs["retrieval_method"] = "PostgreSQL (Direct SQL Filter)"
+                    res_df.attrs["sql_query"] = sql
+                    return res_df
+            except Exception as db_err:
+                print(f"[RETRIEVER] PostgreSQL query failed: {db_err}. Falling back to Parquet dataset.", flush=True)
 
     # 3. Fallback to FAISS (with optional coordinates post-filtering)
     coords = extract_coordinates(user_query)
