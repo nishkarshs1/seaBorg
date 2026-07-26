@@ -1,4 +1,4 @@
-import os
+﻿import os
 import functools
 import json
 import pandas as pd
@@ -152,7 +152,7 @@ def _process_chat_cached(message: str, ocean: str | None = None, history_tuple: 
     from llm.query_engine import is_conversational_only
     import re as _re
 
-    # ── Context Augmentation for Follow-up Queries ──────────────────────────
+    # â”€â”€ Context Augmentation for Follow-up Queries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # When a follow-up like "give me exact date" has no ocean intent on its own,
     # extract float IDs and keywords from conversation history to augment the query
     # so retrieval doesn't get bypassed.
@@ -320,12 +320,39 @@ def chat_stream(req: ChatRequest):
     import time
     from rag.retriever import extract_coordinates
 
+    # SSE helper â€” avoids f-string backslash issues in Python 3.11
+    _NL = "\n\n"
+    def sse(payload: dict) -> str:
+        return "data: " + json.dumps(payload) + _NL
+
     def event_generator():
         try:
             from llm.query_engine import is_conversational_only
-            if is_conversational_only(req.message):
+
+            # â”€â”€ Context Augmentation (same as non-streaming path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            import re as _re
+            augmented_message = req.message
+            history_context_floats = []
+
+            if req.history and not has_ocean_intent(req.message):
+                for h in req.history:
+                    text = h.get("text") or h.get("content", "")
+                    found_fids = _re.findall(r'(?:[A-Z][0-9]{7}|[0-9]{7})', text)
+                    history_context_floats.extend(found_fids)
+                seen = set()
+                unique_floats = []
+                for fid in reversed(history_context_floats):
+                    if fid not in seen:
+                        seen.add(fid)
+                        unique_floats.append(fid)
+                unique_floats = unique_floats[:3]
+                if unique_floats:
+                    float_context = " ".join("Float " + fid for fid in unique_floats)
+                    augmented_message = req.message + " (context: " + float_context + ")"
+
+            if is_conversational_only(req.message) and not history_context_floats:
                 sql = "-- Conversational query (no database lookup required)"
-                yield f"data: {json.dumps({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': []})}\n\n"
+                yield sse({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': []})
                 
                 from groq import Groq
                 client = Groq(api_key=os.getenv("GROQ_API_KEY"), timeout=30.0)
@@ -358,9 +385,9 @@ def chat_stream(req: ChatRequest):
                 for chunk in response:
                     delta = chunk.choices[0].delta.content or ""
                     if delta:
-                        yield f"data: {json.dumps({'type': 'chunk', 'text': delta})}\n\n"
+                        yield sse({'type': 'chunk', 'text': delta})
                 
-                yield "data: {\"type\": \"done\"}\n\n"
+                yield sse({"type": "done"})
                 return
 
             history_tuple = None
@@ -373,11 +400,11 @@ def chat_stream(req: ChatRequest):
             chart_type = detect_chart_type(req.message)
             pipeline_trace = [f"Router: Classified query chart type as '{chart_type}'"]
             
-            should_retrieve = (chart_type != "none") or has_ocean_intent(req.message)
+            should_retrieve = (chart_type != "none") or has_ocean_intent(augmented_message)
             
             if should_retrieve:
                 top_k = 500 if chart_type == "timeseries" else (100 if chart_type != "none" else 5)
-                rows = retrieve(req.message, top_k=top_k, ocean=req.ocean, chart_type=chart_type)
+                rows = retrieve(augmented_message, top_k=top_k, ocean=req.ocean, chart_type=chart_type)
                 method = rows.attrs.get("retrieval_method", "FAISS Vector Search")
                 if "PostgreSQL" in method:
                     pipeline_trace.append("Router: Ocean query detected -> Routed to Relational DB Engine")
@@ -418,40 +445,29 @@ def chat_stream(req: ChatRequest):
                     chart_type = "none"
                     fids = rows["float_id"].unique().tolist() if "float_id" in rows.columns else []
                     fid_str = ", ".join(str(f) for f in fids) if fids else "unknown"
-                    fallback_msg = f"Insufficient time-series data: only {num_distinct_dates} distinct measurement dates available for float {fid_str}. A minimum of 3 dates is required to show a meaningful trend."
-                    is_timeseries_refused = True
-                    pipeline_trace.append("Validator: Time-series rejected due to insufficient measurement dates (< 3)")
-
-            # Run all physical constraint & refusal checks first
-            # Check timeseries constraints
-            is_timeseries_refused = False
-            fallback_msg = ""
-            if chart_type == "timeseries" and not rows.empty:
-                num_distinct_dates = 0
-                if "date" in rows.columns:
-                    unique_dates = pd.to_datetime(rows["date"]).dt.date.unique()
-                    num_distinct_dates = len(unique_dates)
-                if num_distinct_dates < 3:
-                    chart_type = "none"
-                    fids = rows["float_id"].unique().tolist() if "float_id" in rows.columns else []
-                    fid_str = ", ".join(str(f) for f in fids) if fids else "unknown"
-                    fallback_msg = f"Insufficient time-series data: only {num_distinct_dates} distinct measurement dates available for float {fid_str}. A minimum of 3 dates is required to show a meaningful trend."
+                    fallback_msg = (
+                        "Insufficient time-series data: only "
+                        + str(num_distinct_dates)
+                        + " distinct measurement dates available for float "
+                        + fid_str
+                        + ". A minimum of 3 dates is required to show a meaningful trend."
+                    )
                     is_timeseries_refused = True
                     pipeline_trace.append("Validator: Time-series rejected due to insufficient measurement dates (< 3)")
 
             if is_timeseries_refused:
-                yield f"data: {json.dumps({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': [], 'source_files': [], 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': fallback_msg})}\n\n"
-                yield "data: {\"type\": \"done\"}\n\n"
+                yield sse({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': [], 'source_files': [], 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})
+                yield sse({'type': 'chunk', 'text': fallback_msg})
+                yield sse({"type": "done"})
                 return
 
             coords = extract_coordinates(req.message)
             if coords:
                 lat, lon = coords
                 if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
-                    yield f"data: {json.dumps({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': [], 'source_files': [], 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})}\n\n"
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': 'Invalid coordinates: Latitude must be between -90 and 90, and Longitude must be between -180 and 180.'})}\n\n"
-                    yield "data: {\"type\": \"done\"}\n\n"
+                    yield sse({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': [], 'source_files': [], 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})
+                    yield sse({'type': 'chunk', 'text': 'Invalid coordinates: Latitude must be between -90 and 90, and Longitude must be between -180 and 180.'})
+                    yield sse({"type": "done"})
                     return
 
             cleaned_q = re.sub(r'\b(?:float|id|no\.?|number)\s+\d+\b', '', req.message.lower())
@@ -483,34 +499,37 @@ def chat_stream(req: ChatRequest):
                         pass
 
                 if max_year > current_max_year:
-                    yield f"data: {json.dumps({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': [], 'source_files': [], 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})}\n\n"
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': f'The requested date ({max_year}) is in the future. The ARGO dataset contains historical measurements and does not support future predictions.'})}\n\n"
-                    yield "data: {\"type\": \"done\"}\n\n"
+                    future_msg = "The requested date (" + str(max_year) + ") is in the future. The ARGO dataset contains historical measurements and does not support future predictions."
+                    yield sse({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': [], 'source_files': [], 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})
+                    yield sse({'type': 'chunk', 'text': future_msg})
+                    yield sse({"type": "done"})
                     return
 
             if coords and not rows.empty and "distance_km" in rows.columns:
                 closest_dist = rows.iloc[0]["distance_km"]
                 if closest_dist > 500.0:
                     lat_q, lon_q = coords
-                    lat_q_str = f"{abs(lat_q)}N" if lat_q >= 0 else f"{abs(lat_q)}S"
-                    lon_q_str = f"{abs(lon_q)}E" if lon_q >= 0 else f"{abs(lon_q)}W"
+                    lat_q_str = str(abs(lat_q)) + ("N" if lat_q >= 0 else "S")
+                    lon_q_str = str(abs(lon_q)) + ("E" if lon_q >= 0 else "W")
                     closest_lat = rows.iloc[0]["latitude"]
                     closest_lon = rows.iloc[0]["longitude"]
-                    closest_lat_str = f"{closest_lat:.2f}"
-                    closest_lon_str = f"{closest_lon:.2f}"
+                    closest_lat_str = "{:.2f}".format(closest_lat)
+                    closest_lon_str = "{:.2f}".format(closest_lon)
                     warning = (
-                        f"No ARGO float data found within 500km of ({lat_q_str}, {lon_q_str}). "
-                        f"Closest available record is {closest_dist:,.0f}km away at ({closest_lat_str}, {closest_lon_str})."
+                        "No ARGO float data found within 500km of ("
+                        + lat_q_str + ", " + lon_q_str + "). "
+                        + "Closest available record is " + "{:,.0f}".format(closest_dist)
+                        + "km away at (" + closest_lat_str + ", " + closest_lon_str + ")."
                     )
-                    yield f"data: {json.dumps({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': [], 'source_files': [], 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})}\n\n"
-                    yield f"data: {json.dumps({'type': 'chunk', 'text': warning})}\n\n"
-                    yield "data: {\"type\": \"done\"}\n\n"
+                    yield sse({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': [], 'source_files': [], 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})
+                    yield sse({'type': 'chunk', 'text': warning})
+                    yield sse({"type": "done"})
                     return
 
             _q = req.message.lower()
             _impossible_patterns = [
-                (r'(?:temperature|temp|salinity|depth|pressure)\w*[^.!?]*?(?:above|greater than|more than|over|>)\s*(\d+(?:\.\d+)?)\s*(?:°c|c|psu|m|dbar)?[^.!?]*?and[^.!?]*?(?:below|less than|under|<)\s*(\d+(?:\.\d+)?)', True),
-                (r'(?:temperature|temp|salinity|depth|pressure)\w*[^.!?]*?(?:below|less than|under|<)\s*(\d+(?:\.\d+)?)\s*(?:°c|c|psu|m|dbar)?[^.!?]*?and[^.!?]*?(?:above|greater than|more than|over|>)\s*(\d+(?:\.\d+)?)', False),
+                (r'(?:temperature|temp|salinity|depth|pressure)\w*[^.!?]*?(?:above|greater than|more than|over|>)\s*(\d+(?:\.\d+)?)\s*(?:Â°c|c|psu|m|dbar)?[^.!?]*?and[^.!?]*?(?:below|less than|under|<)\s*(\d+(?:\.\d+)?)', True),
+                (r'(?:temperature|temp|salinity|depth|pressure)\w*[^.!?]*?(?:below|less than|under|<)\s*(\d+(?:\.\d+)?)\s*(?:Â°c|c|psu|m|dbar)?[^.!?]*?and[^.!?]*?(?:above|greater than|more than|over|>)\s*(\d+(?:\.\d+)?)', False),
             ]
             is_contradiction_found = False
             for pattern, first_is_high in _impossible_patterns:
@@ -523,9 +542,10 @@ def chat_stream(req: ChatRequest):
                         break
 
             if is_contradiction_found:
-                yield f"data: {json.dumps({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': [], 'source_files': [], 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})}\n\n"
-                yield f"data: {json.dumps({'type': 'chunk', 'text': 'No records match these constraints \u2014 the conditions given cannot be satisfied simultaneously.'})}\n\n"
-                yield "data: {\"type\": \"done\"}\n\n"
+                contradiction_msg = "No records match these constraints \u2014 the conditions given cannot be satisfied simultaneously."
+                yield sse({'type': 'meta', 'chart_type': 'none', 'sql_used': sql, 'float_ids': [], 'data': [], 'source_files': [], 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})
+                yield sse({'type': 'chunk', 'text': contradiction_msg})
+                yield sse({"type": "done"})
                 return
 
             if rows.empty:
@@ -546,11 +566,11 @@ def chat_stream(req: ChatRequest):
                     else:
                         source_files = ["Local Dataset (argo.parquet via FAISS index)"]
                 else:
-                    source_files = [f"{fid}_prof.nc" for fid in float_ids]
+                    source_files = [fid + "_prof.nc" for fid in float_ids]
 
             pipeline_trace.append("Summarizer: Streaming tokens from Groq LLM...")
             
-            yield f"data: {json.dumps({'type': 'meta', 'chart_type': chart_type, 'sql_used': sql, 'float_ids': float_ids, 'data': serialized_data, 'source_files': source_files, 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})}\n\n"
+            yield sse({'type': 'meta', 'chart_type': chart_type, 'sql_used': sql, 'float_ids': float_ids, 'data': serialized_data, 'source_files': source_files, 'pipeline_trace': pipeline_trace, 'validation_warnings': validation_warnings})
 
             from groq import Groq
             client = Groq(api_key=os.getenv("GROQ_API_KEY"), timeout=30.0)
@@ -594,12 +614,13 @@ def chat_stream(req: ChatRequest):
                 for chunk in response:
                     delta = chunk.choices[0].delta.content or ""
                     if delta:
-                        yield f"data: {json.dumps({'type': 'chunk', 'text': delta})}\n\n"
+                        yield sse({'type': 'chunk', 'text': delta})
 
-            yield "data: {\"type\": \"done\"}\n\n"
+            yield sse({"type": "done"})
         except Exception as e:
-            print(f"Streaming error: {e}", flush=True)
-            yield f"data: {json.dumps({'type': 'error', 'text': str(e)})}\n\n"
-            yield "data: {\"type\": \"done\"}\n\n"
+            print("Streaming error: " + str(e), flush=True)
+            yield sse({'type': 'error', 'text': str(e)})
+            yield sse({"type": "done"})
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+    return StreamingResponse(event_generator(), media_type='text/event-stream')
